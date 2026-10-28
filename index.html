@@ -1,0 +1,1656 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- Offline lock: no network requests of any kind are allowed from this page. -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file: 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; worker-src 'self' file: blob:; form-action 'none'; base-uri 'none'">
+<title>Statement Sorter</title>
+<style>
+:root {
+  color-scheme: light;
+  --bg: #f6f5f2; --surface: #fcfcfb; --surface-2: #f0efec; --border: #e2e0da;
+  --text: #0b0b0b; --text-2: #52514e; --muted: #7d7b75;
+  --accent: #2a78d6; --accent-ink: #ffffff; --drop: #e6effb;
+  --pos: #0a7a2f; --danger: #b42318;
+  --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --s4: #eda100;
+  --s5: #e87ba4; --s6: #008300; --s7: #6250d6; --s8: #e34948;
+  --other: #8a8984; --untagged: #c9c7c0;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #121211; --surface: #1a1a19; --surface-2: #252523; --border: #34342f;
+    --text: #f0efec; --text-2: #c3c2b7; --muted: #8f8d86;
+    --accent: #3987e5; --drop: #1d2b3d; --pos: #4cc76f; --danger: #f07a6e;
+    --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+    --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+    --other: #8a8984; --untagged: #5d5c58;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #121211; --surface: #1a1a19; --surface-2: #252523; --border: #34342f;
+  --text: #f0efec; --text-2: #c3c2b7; --muted: #8f8d86;
+  --accent: #3987e5; --drop: #1d2b3d; --pos: #4cc76f; --danger: #f07a6e;
+  --s1: #3987e5; --s2: #d95926; --s3: #199e70; --s4: #c98500;
+  --s5: #d55181; --s6: #008300; --s7: #9085e9; --s8: #e66767;
+  --other: #8a8984; --untagged: #5d5c58;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.45 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+}
+button, input, select { font: inherit; color: inherit; }
+button {
+  cursor: pointer; border: 1px solid var(--border); background: var(--surface);
+  border-radius: 8px; padding: 6px 12px;
+}
+button:hover { background: var(--surface-2); }
+button.primary { background: var(--accent); color: var(--accent-ink); border-color: var(--accent); }
+button.ghost { border-color: transparent; background: transparent; }
+button.danger { color: var(--danger); }
+input[type=text], input[type=search], select {
+  border: 1px solid var(--border); background: var(--surface); border-radius: 8px; padding: 6px 10px;
+}
+.num { font-variant-numeric: tabular-nums; white-space: nowrap; }
+.pos { color: var(--pos); }
+.muted { color: var(--muted); }
+
+header {
+  position: sticky; top: 0; z-index: 10; background: var(--surface);
+  border-bottom: 1px solid var(--border);
+}
+.bar { max-width: 1200px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
+.brand { font-weight: 650; font-size: 16px; margin-right: 8px; }
+nav { display: flex; gap: 4px; flex-wrap: wrap; }
+nav button { border-color: transparent; background: transparent; color: var(--text-2); }
+nav button[aria-selected="true"] { background: var(--surface-2); color: var(--text); font-weight: 600; }
+.badge { display: inline-block; min-width: 18px; padding: 0 6px; margin-left: 4px; border-radius: 9px; background: var(--border); font-size: 12px; text-align: center; }
+.spacer { flex: 1; }
+.tools { display: flex; gap: 6px; flex-wrap: wrap; }
+
+main { max-width: 1200px; margin: 0 auto; padding: 20px 16px 60px; }
+.view { display: none; }
+.view.active { display: block; }
+h2 { font-size: 18px; margin: 0 0 4px; }
+.sub { color: var(--text-2); margin: 0 0 16px; }
+.panel { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 16px; }
+
+/* Import */
+.dropzone {
+  border: 2px dashed var(--border); border-radius: 12px; padding: 40px 16px; text-align: center;
+  background: var(--surface); transition: background .15s, border-color .15s;
+}
+.dropzone.over { background: var(--drop); border-color: var(--accent); }
+.dropzone p { margin: 6px 0; }
+.settings { display: flex; gap: 16px; flex-wrap: wrap; margin: 16px 0; align-items: center; }
+.settings label { display: flex; gap: 8px; align-items: center; color: var(--text-2); }
+.log { display: grid; gap: 8px; margin-top: 16px; }
+.log .item { background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 14px; }
+.log .warn { color: var(--danger); }
+.imports { margin-top: 20px; }
+.imports h3 { font-size: 15px; margin: 0 0 8px; }
+.imports td .name { font-weight: 600; overflow-wrap: anywhere; }
+.imports td .meta { font-size: 12px; color: var(--muted); }
+.imports td:first-child { min-width: 180px; }
+.imports .actions { display: flex; gap: 6px; margin-top: 6px; }
+.imports .actions button { white-space: nowrap; }
+.log pre { max-height: 300px; overflow: auto; font-size: 12px; background: var(--surface-2); padding: 8px; border-radius: 6px; white-space: pre; }
+.note { font-size: 13px; color: var(--text-2); margin-top: 20px; }
+
+/* Sort */
+.sort-grid { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 820px) { .sort-grid { grid-template-columns: 1fr; } }
+/* Keep the drop targets in view while scrolling a long list of pools. */
+@media (min-width: 821px) {
+  .sort-side { position: sticky; top: calc(var(--header-h, 60px) + 12px); max-height: calc(100vh - var(--header-h, 60px) - 24px); overflow-y: auto; }
+}
+.col-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.col-head h3 { margin: 0; font-size: 15px; }
+.progress { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; margin: 8px 0 12px; }
+.progress > div { height: 100%; background: var(--accent); }
+.pool-list { display: grid; gap: 6px; min-height: 120px; border-radius: 10px; transition: background .15s; }
+.pool-list.over { background: var(--drop); outline: 2px dashed var(--accent); }
+.pool {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px;
+  padding: 8px 10px; cursor: grab;
+}
+.pool.selected { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.pool.dragging { opacity: .5; }
+.pool-row { display: flex; gap: 10px; align-items: center; }
+.pool-main { flex: 1; min-width: 0; }
+.pool-name { font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.pool-meta { font-size: 12px; color: var(--muted); }
+.suggest { font-size: 12px; padding: 2px 8px; border-radius: 12px; border-style: dashed; color: var(--text-2); white-space: nowrap; }
+.expand { padding: 2px 8px; }
+.pool-txns { margin-top: 8px; border-top: 1px solid var(--border); padding-top: 6px; display: grid; gap: 2px; }
+.txn-row {
+  display: grid; grid-template-columns: 84px minmax(0,1fr) auto; gap: 8px; font-size: 13px;
+  padding: 3px 6px; border-radius: 6px; cursor: pointer;
+}
+.txn-row:hover { background: var(--surface-2); }
+.txn-row .d { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--text-2); }
+.cats { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.cat {
+  background: var(--surface); border: 1px solid var(--border); border-radius: 10px; padding: 10px 12px;
+  cursor: pointer; transition: background .15s, border-color .15s; min-height: 64px;
+}
+.cat.over, .cat.armed:hover { background: var(--drop); border-color: var(--accent); }
+.cat.armed { border-style: dashed; border-color: var(--accent); }
+.cat.open { box-shadow: 0 0 0 2px var(--accent); }
+.cat-name { font-weight: 600; display: flex; gap: 6px; align-items: center; }
+.dot { width: 10px; height: 10px; border-radius: 50%; flex: none; background: var(--other); }
+.cat-meta { font-size: 12px; color: var(--muted); margin-top: 2px; }
+.subs { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 8px; }
+.subcat {
+  font-size: 12px; padding: 2px 8px; border-radius: 12px; border: 1px solid var(--border);
+  background: var(--surface-2); cursor: pointer; transition: background .15s, border-color .15s;
+}
+.subcat .muted { margin-left: 2px; }
+.subcat.over, .subcat.open, .cat.armed .subcat:hover { border-color: var(--accent); background: var(--drop); }
+.subcat.add { border-style: dashed; background: transparent; color: var(--muted); }
+.tag-sub { font-size: 11px; padding: 1px 6px; border-radius: 10px; background: var(--surface-2); color: var(--text-2); margin-left: 6px; font-weight: 400; }
+.subrow td { font-size: 13px; color: var(--text-2); padding-top: 3px; padding-bottom: 3px; }
+.subrow td:first-child { padding-left: 30px; }
+.subrow .share-bar { height: 5px; }
+.add-cat { display: flex; gap: 6px; margin-top: 10px; }
+.add-cat input { flex: 1; min-width: 0; }
+.add-cat select { flex: none; max-width: 150px; }
+.kw-row { display: flex; gap: 6px; align-items: center; padding: 5px 0; font-size: 13px; border-top: 1px solid var(--border); flex-wrap: wrap; }
+.kw-row:first-child { border-top: 0; }
+.kw-row button { margin-left: auto; }
+#kw-list { margin-top: 8px; }
+.detail { margin-top: 14px; }
+.detail-head { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin-bottom: 10px; }
+.detail-head input[type=text] { font-weight: 600; flex: 1; min-width: 120px; }
+.detail label { color: var(--text-2); font-size: 13px; display: flex; gap: 6px; align-items: center; }
+.empty { color: var(--muted); padding: 24px; text-align: center; border: 1px dashed var(--border); border-radius: 10px; }
+.hint { font-size: 12px; color: var(--muted); margin-top: 6px; }
+
+/* Transactions table */
+.filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 12px; align-items: center; }
+.table-wrap { overflow-x: auto; background: var(--surface); border: 1px solid var(--border); border-radius: 12px; }
+table { width: 100%; border-collapse: collapse; }
+th, td { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--border); vertical-align: middle; }
+th { font-size: 12px; color: var(--text-2); font-weight: 600; background: var(--surface-2); position: sticky; top: 0; }
+td.r, th.r { text-align: right; }
+tr:last-child td { border-bottom: 0; }
+#tx-body tr[data-id] { cursor: pointer; }
+#tx-body tr[data-id]:hover td { background: var(--surface-2); }
+
+/* Transaction details */
+#txn-dialog {
+  width: min(520px, calc(100% - 32px)); padding: 0; border: 1px solid var(--border); border-radius: 14px;
+  background: var(--surface); color: var(--text); box-shadow: 0 12px 40px rgba(0,0,0,.25);
+}
+#txn-dialog::backdrop { background: rgba(0,0,0,.35); }
+.dlg-head { display: flex; align-items: flex-start; gap: 12px; padding: 18px 20px 12px; border-bottom: 1px solid var(--border); }
+.dlg-head > div { flex: 1; }
+.dlg-amt { font-size: 26px; font-weight: 650; }
+.dlg-grid { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px 14px; margin: 0; padding: 16px 20px; }
+.dlg-grid dt { color: var(--text-2); font-size: 13px; padding-top: 2px; }
+.dlg-grid dd { margin: 0; overflow-wrap: anywhere; }
+.dlg-desc { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; background: var(--surface-2); padding: 8px 10px; border-radius: 8px; }
+.dlg-actions { display: flex; gap: 8px; flex-wrap: wrap; padding: 12px 20px 18px; border-top: 1px solid var(--border); }
+.dlg-actions .spacer { flex: 1; }
+td select { padding: 3px 6px; max-width: 170px; }
+td .desc { max-width: 380px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+td .src { font-size: 11px; color: var(--muted); }
+.icon-btn { padding: 2px 8px; font-size: 12px; }
+
+/* Summary */
+.kpis { display: grid; grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.kpi { background: var(--surface); border: 1px solid var(--border); border-radius: 12px; padding: 12px 14px; }
+.kpi .label { font-size: 12px; color: var(--text-2); }
+.kpi .value { font-size: 22px; font-weight: 650; margin-top: 2px; }
+.charts { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.2fr); gap: 16px; align-items: start; }
+@media (max-width: 900px) { .charts { grid-template-columns: 1fr; } }
+.chart-box { position: relative; height: 300px; }
+.share-table td { padding: 6px 8px; }
+.share-bar { height: 8px; border-radius: 4px; background: var(--surface-2); min-width: 60px; }
+.share-bar > div { height: 100%; border-radius: 4px; }
+.panel h3 { margin: 0 0 10px; font-size: 15px; }
+.panel + .panel { margin-top: 16px; }
+
+#toast {
+  position: fixed; left: 50%; bottom: 20px; transform: translateX(-50%); background: var(--text); color: var(--bg);
+  padding: 8px 14px; border-radius: 8px; font-size: 13px; opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 50;
+}
+#toast.show { opacity: .95; }
+#toast.has-action { pointer-events: auto; }
+.toast-btn { margin-left: 10px; background: transparent; color: inherit; border: 1px solid currentColor; padding: 2px 10px; border-radius: 6px; font-size: 12px; font-weight: 600; }
+.toast-btn:hover { background: transparent; opacity: .8; }
+.del-pool { padding: 4px 6px; line-height: 0; color: var(--muted); }
+.del-pool:hover { color: var(--danger); }
+</style>
+</head>
+<body>
+<header>
+  <div class="bar">
+    <div class="brand">Statement Sorter</div>
+    <nav role="tablist">
+      <button data-view="import" role="tab">1. Import</button>
+      <button data-view="sort" role="tab">2. Sort <span class="badge" id="badge-untagged">0</span></button>
+      <button data-view="txns" role="tab">Transactions</button>
+      <button data-view="summary" role="tab">3. Summary</button>
+    </nav>
+    <div class="spacer"></div>
+    <div class="tools">
+      <button id="btn-export" title="Download all transactions as CSV">Export CSV</button>
+      <button id="btn-backup" title="Download a backup of everything">Backup</button>
+      <button id="btn-restore" title="Load a backup file">Restore</button>
+      <button id="btn-reset" class="danger" title="Delete all saved data from this browser">Reset all</button>
+      <input type="file" id="restore-input" accept=".json,application/json" hidden>
+    </div>
+  </div>
+</header>
+
+<main>
+  <!-- IMPORT -->
+  <section class="view" id="view-import">
+    <h2>Import bank statements</h2>
+    <p class="sub">Add one or more PDF statements. They are read inside this page only — the page is blocked from making any network requests.</p>
+    <div class="dropzone" id="dropzone">
+      <p><strong>Drop PDF statements here</strong></p>
+      <p class="muted">or</p>
+      <button class="primary" id="btn-pick">Choose PDFs…</button>
+      <input type="file" id="file-input" accept="application/pdf,.pdf" multiple hidden>
+    </div>
+    <div class="settings">
+      <label>Date format
+        <select id="set-datefmt">
+          <option value="auto">Auto-detect</option>
+          <option value="dmy">DD/MM/YYYY</option>
+          <option value="mdy">MM/DD/YYYY</option>
+        </select>
+      </label>
+      <label>Currency symbol <input type="text" id="set-currency" size="4" placeholder="£"></label>
+    </div>
+    <div class="imports" id="imports"></div>
+    <div class="log" id="import-log"></div>
+    <p class="note">Tip: if a statement imports wrongly, open “Show extracted text” on it — that’s exactly what the parser saw. You can fix individual rows on the Transactions tab (flip sign, delete).</p>
+  </section>
+
+  <!-- SORT -->
+  <section class="view" id="view-sort">
+    <h2>Sort into categories</h2>
+    <p class="sub">Similar transactions are pooled together (e.g. every “Tesco” purchase). Drag a pool — or a single transaction — onto a category. Or tick several pools and click a category.</p>
+    <div class="sort-grid">
+      <div class="panel">
+        <div class="col-head">
+          <h3 id="pool-title">To sort</h3>
+          <div class="spacer"></div>
+          <input type="search" id="pool-search" placeholder="Search…" style="width:140px">
+          <select id="pool-sort">
+            <option value="total">Biggest first</option>
+            <option value="count">Most frequent</option>
+            <option value="name">A–Z</option>
+          </select>
+        </div>
+        <div class="progress"><div id="progress-fill" style="width:0"></div></div>
+        <div class="col-head">
+          <button id="btn-accept-all" class="ghost" title="Apply every suggested category">Accept all suggestions</button>
+          <div class="spacer"></div>
+          <span class="muted" id="sel-count"></span>
+          <button id="btn-del-sel" class="ghost danger" hidden>Delete selected</button>
+          <button id="btn-clear-sel" class="ghost" hidden>Clear selection</button>
+        </div>
+        <div class="pool-list" id="pool-list"></div>
+        <div class="hint">Drop items here to un-tag them.</div>
+      </div>
+      <div class="sort-side">
+        <div class="panel">
+          <div class="col-head"><h3>Categories</h3><div class="spacer"></div><span class="muted" id="cat-hint"></span></div>
+          <div class="cats" id="cats"></div>
+          <form class="add-cat" id="add-cat">
+            <input type="text" id="new-cat" placeholder="New category name">
+            <button type="submit">Add</button>
+          </form>
+        </div>
+        <div class="panel detail" id="cat-detail" hidden></div>
+        <div class="panel" id="kw-panel">
+          <div class="col-head"><h3>Name &amp; keyword rules</h3></div>
+          <div class="hint" style="margin-top:0">Tag by who or what is named in the description — e.g. every transfer to “Ahmed” → Groceries. These win over everything else and are applied to future imports too.</div>
+          <form class="add-cat" id="add-kw">
+            <input type="text" id="kw-text" placeholder="Name or word, e.g. Ahmed" aria-label="Name or word">
+            <select id="kw-cat" aria-label="Category for this rule"></select>
+            <button type="submit">Add rule</button>
+          </form>
+          <div id="kw-list"></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- TRANSACTIONS -->
+  <section class="view" id="view-txns">
+    <h2>All transactions</h2>
+    <p class="sub">Check what was imported. Change a category, flip a wrongly signed amount, or delete junk rows.</p>
+    <div class="filters">
+      <input type="search" id="tx-search" placeholder="Search description…">
+      <select id="tx-cat"></select>
+      <select id="tx-period"></select>
+      <span class="muted" id="tx-count"></span>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Date</th><th>Description</th><th>Category</th><th class="r">Amount</th><th class="r">Balance</th><th></th></tr></thead>
+        <tbody id="tx-body"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <!-- SUMMARY -->
+  <section class="view" id="view-summary">
+    <h2>Summary</h2>
+    <div class="filters">
+      <label class="muted">Period <select id="sum-period"></select></label>
+    </div>
+    <div class="kpis" id="kpis"></div>
+    <div class="charts">
+      <div class="panel">
+        <h3>Where the money went</h3>
+        <div class="chart-box"><canvas id="chart-donut" aria-label="Spending share by category"></canvas></div>
+      </div>
+      <div class="panel">
+        <h3>Spending by category</h3>
+        <table class="share-table" id="share-table"></table>
+      </div>
+    </div>
+    <div class="panel" id="monthly-panel" style="margin-top:16px">
+      <h3>Spending per month</h3>
+      <div class="chart-box"><canvas id="chart-monthly" aria-label="Monthly spending by category"></canvas></div>
+    </div>
+    <div class="panel" id="income-panel">
+      <h3>Money in</h3>
+      <table class="share-table" id="income-table"></table>
+    </div>
+    <p class="note">Categories marked “exclude from totals” (e.g. Transfers between your own accounts) are left out of every figure on this page. Refunds reduce the spending of the category they’re tagged with.</p>
+  </section>
+</main>
+<dialog id="txn-dialog" aria-label="Transaction details"></dialog>
+<div id="toast"></div>
+
+<script src="vendor/pdf.worker.min.js"></script>
+<script src="vendor/pdf.min.js"></script>
+<script src="vendor/chart.umd.min.js"></script>
+<script>
+'use strict';
+// ---------------------------------------------------------------------------
+// Helpers & state
+// ---------------------------------------------------------------------------
+const $ = (s, r = document) => r.querySelector(s);
+const $$ = (s, r = document) => [...r.querySelectorAll(s)];
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const uid = () => Math.random().toString(36).slice(2, 10);
+const pad = n => String(n).padStart(2, '0');
+const STORE_KEY = 'statement-sorter-v1';
+
+const DEFAULT_CATS = ['Groceries', 'Eating out', 'Transport', 'Shopping', 'Bills & utilities', 'Subscriptions',
+  'Housing', 'Health', 'Entertainment', 'Travel', 'Cash', 'Remittances', 'Transfers', 'Income', 'Other'];
+
+function freshState() {
+  return {
+    txns: [], rules: {}, files: [], keywords: [],
+    cats: DEFAULT_CATS.map(name => ({ id: uid(), name, exclude: name === 'Transfers' })),
+    settings: { dateFmt: 'auto', currency: '', addedRemittances: true, poolVersion: 3 },
+  };
+}
+function load() {
+  try { const raw = localStorage.getItem(STORE_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
+}
+function save() {
+  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { toast('Could not save in this browser — use Backup to keep your work.'); }
+}
+let state = load() || freshState();
+// Saved data from before Remittances was a default category gets it once (it can be deleted afterwards).
+if (!state.settings.addedRemittances) {
+  if (!state.cats.some(c => c.name.toLowerCase() === 'remittances')) {
+    const at = state.cats.findIndex(c => c.name === 'Transfers');
+    state.cats.splice(at < 0 ? state.cats.length : at, 0, { id: uid(), name: 'Remittances', exclude: false });
+  }
+  state.settings.addedRemittances = true;
+}
+state.keywords ||= [];
+state.files ||= [];
+
+const ui = { view: 'import', selected: new Set(), expanded: new Set(), openCat: null, rawText: {} };
+
+function toast(msg, undo) {
+  const t = $('#toast');
+  const hide = () => t.classList.remove('show', 'has-action');
+  t.textContent = msg;
+  if (undo) {
+    const b = Object.assign(document.createElement('button'), { className: 'toast-btn', textContent: 'Undo' });
+    b.onclick = () => { hide(); undo(); };
+    t.append(b);
+  }
+  t.classList.add('show'); t.classList.toggle('has-action', !!undo);
+  clearTimeout(toast._t); toast._t = setTimeout(hide, undo ? 8000 : 2600);
+}
+// Deletes a set of transactions after confirming, with a few seconds to undo.
+function deleteTxns(list, what) {
+  if (!list.length) return false;
+  const total = list.reduce((s, t) => s + t.amount, 0);
+  const n = list.length, many = n === 1 ? 'transaction' : 'transactions';
+  if (!confirm(`Delete ${what}: ${n} ${many} (${money(total, true)})?\n\nThis only removes them from the app — your PDF isn't changed, and importing that statement again would bring them back.`)) return false;
+  const ids = new Set(list.map(t => t.id));
+  const removed = state.txns.filter(t => ids.has(t.id));
+  state.txns = state.txns.filter(t => !ids.has(t.id));
+  save(); renderAll();
+  toast(`Deleted ${n} ${many}`, () => { state.txns.push(...removed); save(); renderAll(); toast('Restored'); });
+  return true;
+}
+function money(v, signed = false) {
+  const sym = state.settings.currency || '';
+  const s = Math.abs(v).toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+  const sign = signed ? (v < 0 ? '−' : v > 0 ? '+' : '') : (v < 0 ? '−' : '');
+  return sign + sym + s;
+}
+function fmtDate(iso) {
+  const [y, m, d] = iso.split('-').map(Number);
+  return new Date(y, m - 1, d).toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: '2-digit' });
+}
+const monthLabel = ym => { const [y, m] = ym.split('-').map(Number); return new Date(y, m - 1, 1).toLocaleDateString(undefined, { month: 'short', year: 'numeric' }); };
+const catById = id => state.cats.find(c => c.id === id);
+// Sub-categories are categories with a `parent` (one level deep).
+const tops = () => state.cats.filter(c => !c.parent);
+const subsOf = id => state.cats.filter(c => c.parent === id);
+const topOf = id => { const c = catById(id); return c && c.parent ? catById(c.parent) : c; };
+const catLabel = id => { const c = catById(id); if (!c) return ''; const p = c.parent && catById(c.parent); return p ? `${p.name} › ${c.name}` : c.name; };
+const inCat = (t, id) => !!t.cat && (t.cat === id || catById(t.cat)?.parent === id);
+const isExcluded = id => { const c = catById(id); return !!c && (c.exclude || !!(c.parent && catById(c.parent)?.exclude)); };
+const catOptions = selected => tops().flatMap(c => [c, ...subsOf(c.id)])
+  .map(c => `<option value="${c.id}" ${c.id === selected ? 'selected' : ''}>${esc(catLabel(c.id))}</option>`).join('');
+const titleCase = s => s.toLowerCase().replace(/\b[a-z]/g, c => c.toUpperCase());
+
+// ---------------------------------------------------------------------------
+// PDF → lines of positioned text
+// ---------------------------------------------------------------------------
+pdfjsLib.GlobalWorkerOptions.workerSrc = 'vendor/pdf.worker.min.js';
+
+async function readPdf(file) {
+  const data = new Uint8Array(await file.arrayBuffer());
+  const task = pdfjsLib.getDocument({ data, isEvalSupported: false, disableFontFace: true, useSystemFonts: false });
+  task.onPassword = (update, reason) => {
+    const p = prompt(reason === pdfjsLib.PasswordResponses.INCORRECT_PASSWORD
+      ? `Wrong password for ${file.name}. Try again:` : `${file.name} is password-protected. Enter its password:`);
+    if (p === null) task.destroy(); else update(p);
+  };
+  const pdf = await task.promise;
+  const pages = [];
+  for (let p = 1; p <= pdf.numPages; p++) {
+    const page = await pdf.getPage(p);
+    const tc = await page.getTextContent();
+    pages.push(toLines(tc.items));
+  }
+  await pdf.destroy();
+  return pages;
+}
+
+function toLines(items) {
+  const its = items.filter(i => i.str && i.str.trim()).map(i => ({
+    x: i.transform[4], y: i.transform[5], w: i.width, h: Math.abs(i.transform[3]) || i.height || 8, str: i.str,
+  }));
+  its.sort((a, b) => b.y - a.y || a.x - b.x);
+  const lines = [];
+  for (const it of its) {
+    let line = lines.find(l => Math.abs(l.y - it.y) < Math.max(2, Math.min(l.h, it.h) * 0.45));
+    if (!line) { line = { y: it.y, h: it.h, items: [] }; lines.push(line); }
+    line.items.push(it);
+  }
+  lines.sort((a, b) => b.y - a.y);
+  for (const l of lines) {
+    l.items.sort((a, b) => a.x - b.x);
+    const segs = [];
+    for (const it of l.items) {
+      const last = segs[segs.length - 1];
+      const gap = last ? it.x - last.x2 : Infinity;
+      if (last && gap < Math.max(3, it.h * 0.6)) {
+        last.str += (gap > it.h * 0.12 && !last.str.endsWith(' ') ? ' ' : '') + it.str;
+        last.x2 = Math.max(last.x2, it.x + it.w);
+      } else segs.push({ x: it.x, x2: it.x + it.w, str: it.str });
+    }
+    l.segs = segs.map(s => ({ ...s, str: s.str.replace(/\s+/g, ' ').trim() })).filter(s => s.str);
+    delete l.items;
+  }
+  // Table cells that wrap (e.g. "01 Sep" / "25") or vertically-centred amounts sit on baselines much
+  // closer together than normal line spacing. Fold those into one row; overlapping segments are the
+  // same cell continuing, so their text is appended.
+  const rows = [];
+  for (const l of lines) {
+    if (!l.segs.length) continue;
+    const prev = rows[rows.length - 1];
+    if (prev && prev.y - l.y < Math.min(prev.h, l.h) * 0.7) {
+      for (const s of l.segs) {
+        const cell = prev.segs.find(p => s.x < p.x2 && s.x2 > p.x);
+        if (cell) { cell.str += ' ' + s.str; cell.x2 = Math.max(cell.x2, s.x2); }
+        else prev.segs.push(s);
+      }
+      prev.segs.sort((a, b) => a.x - b.x);
+      prev.y = l.y;
+    } else rows.push(l);
+  }
+  for (const r of rows) r.text = r.segs.map(s => s.str).join('  ');
+  return rows;
+}
+
+// ---------------------------------------------------------------------------
+// Dates
+// ---------------------------------------------------------------------------
+const MON_RE = '(jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\\.?';
+const MONTHS = { jan: 1, feb: 2, mar: 3, apr: 4, may: 5, jun: 6, jul: 7, aug: 8, sep: 9, oct: 10, nov: 11, dec: 12 };
+const mon = s => MONTHS[s.slice(0, 3).toLowerCase()];
+const yr = s => s.length === 2 ? 2000 + +s : +s;
+const DATE_PATTERNS = [
+  [/^(\d{4})[-\/.](\d{1,2})[-\/.](\d{1,2})(?![\d])/, m => ({ y: +m[1], m: +m[2], d: +m[3] })],
+  [/^(\d{1,2})[-\/.](\d{1,2})[-\/.](\d{4}|\d{2})(?![\d])/, m => ({ a: +m[1], b: +m[2], y: yr(m[3]) })],
+  [new RegExp('^(\\d{1,2})(?:st|nd|rd|th)?[ \\-]?' + MON_RE + '(?:[ \\-,]{1,2}(\\d{4}|\\d{2}))?(?![a-z\\d.,])', 'i'),
+    m => ({ d: +m[1], m: mon(m[2]), y: m[3] ? yr(m[3]) : null })],
+  [new RegExp('^' + MON_RE + '[ \\-](\\d{1,2})(?:st|nd|rd|th)?(?:,?[ \\-](\\d{4}))?(?![a-z\\d.,])', 'i'),
+    m => ({ d: +m[2], m: mon(m[1]), y: m[3] ? +m[3] : null })],
+  [/^(\d{1,2})\/(\d{1,2})(?![\d\/.])/, m => ({ a: +m[1], b: +m[2], y: null })],
+];
+function parseDateAt(text) {
+  for (const [re, f] of DATE_PATTERNS) {
+    const m = text.match(re);
+    if (!m) continue;
+    const p = f(m);
+    if ('a' in p) { if (p.a < 1 || p.b < 1 || p.a > 31 || p.b > 31 || (p.a > 12 && p.b > 12)) continue; }
+    else if (!(p.m >= 1 && p.m <= 12 && p.d >= 1 && p.d <= 31)) continue;
+    return { len: m[0].length, parts: p };
+  }
+  return null;
+}
+function resolveDate(p, fmt, years) {
+  let d, m, y = p.y;
+  if ('a' in p) {
+    if (p.a > 12) { d = p.a; m = p.b; } else if (p.b > 12) { m = p.a; d = p.b; }
+    else if (fmt === 'mdy') { m = p.a; d = p.b; } else { d = p.a; m = p.b; }
+  } else { d = p.d; m = p.m; }
+  // Dates without a year: if the statement spans two years, late-year months belong to the earlier one.
+  if (!y) y = years.min === years.max ? years.max : (m >= 7 ? years.min : years.max);
+  if (!(m >= 1 && m <= 12 && d >= 1 && d <= 31)) return null;
+  return `${y}-${pad(m)}-${pad(d)}`;
+}
+
+// ---------------------------------------------------------------------------
+// Amounts
+// ---------------------------------------------------------------------------
+const AMT_G = /(?<![\w.,])(\(?)([-−–]?)\s?(?:[£$€₹¥]|Rs\.?\s?|PKR\s?|USD\s?|GBP\s?|EUR\s?|INR\s?|AED\s?)?([-−–]?)(\d{1,3}(?:,\d{3})+|\d+)\.(\d{2})(?![.,]?\d)(\)?)(\s?(?:CR|DR|Cr|Dr|cr|dr)\b|-(?![\w]))?/g;
+const CODE_RE = /\b(CR|DR|PKR|USD|GBP|EUR|INR|AED|Rs)\b\.?/gi;
+function amountsIn(str) {
+  return [...str.matchAll(AMT_G)].map(m => ({
+    index: m.index, len: m[0].length,
+    value: parseFloat(m[4].replace(/,/g, '') + '.' + m[5]),
+    neg: !!(m[2] || m[3] || (m[1] && m[6]) || /dr|-/i.test(m[7] || '')),
+    cr: /cr/i.test(m[7] || ''),
+  }));
+}
+// Split a line into description text and the trailing amount columns.
+function analyzeLine(line) {
+  const parts = [], amts = [];
+  line.segs.forEach((s, i) => {
+    const ms = amountsIn(s.str);
+    if (ms.length) {
+      const leftover = s.str.replace(AMT_G, ' ').replace(CODE_RE, ' ').replace(/[£$€₹¥()\s]/g, '');
+      if (!/[a-z0-9]/i.test(leftover)) {
+        const w = s.x2 - s.x;
+        for (const m of ms) amts.push({ ...m, x: s.x + w * ((m.index + m.len / 2) / s.str.length) });
+        return;
+      }
+      // Last segment may have amounts glued to the description: peel trailing amounts off.
+      if (i === line.segs.length - 1) {
+        let k = ms.length;
+        while (k > 0) {
+          const tail = s.str.slice(ms[k - 1].index).replace(AMT_G, ' ').replace(CODE_RE, ' ').trim();
+          if (tail) break;
+          k--;
+        }
+        if (k < ms.length) {
+          const cut = ms[k].index;
+          const head = s.str.slice(0, cut).trim();
+          if (/[a-z]/i.test(head)) {
+            parts.push(head);
+            for (const m of ms.slice(k)) amts.push({ ...m, x: s.x2 });
+            return;
+          }
+        }
+      }
+    }
+    parts.push(s.str);
+  });
+  return { text: parts.join(' ').replace(/\s+/g, ' ').trim(), amts };
+}
+
+// ---------------------------------------------------------------------------
+// Statement → transactions
+// ---------------------------------------------------------------------------
+const BAL_LINE_RE = /balance (brought|carried) forward|\b(opening|closing|previous|new|start(ing)?|end(ing)?) balance|balance [bc]\/?f\b|brought forward|carried forward/i;
+const OPEN_BAL_RE = /brought forward|opening balance|previous balance|start(ing)? balance|balance b\/?f/i;
+const SUMMARY_RE = /\btotal|money (in|out)\b|payments? (in|out)\b|paid (in|out)\b|credit limit|minimum (payment|due)|payment due|available|overdraft|interest rate|\bapr\b|statement (date|period|number)|page \d|sort code|account (number|no)|iban|bic\b/i;
+const FOOTER_RE = /page \d|continued|statement|sort code|account (number|no)|www\.|\.com\b|registered|authori[sz]ed|regulated|balance|\b\d{1,2}:\d{2}\b/i;
+const INCOME_RE = /salary|payroll|\bwages?\b|deposit|refund|interest paid|credit interest|transfer from|\bfrom\b|received|dividend|reversal|cashback|payment received|thank you|\bbgc\b|\bcredit\b/i;
+
+function detectHeader(line, L) {
+  if (L.amts.length) return null;
+  const t = line.text.toLowerCase();
+  const find = re => line.segs.find(s => re.test(s.str));
+  const deb = find(/debit|withdraw|paid out|money out|payments? out|\bout\b|\bdr\b/i);
+  const cred = find(/credit|deposit|paid in|money in|payments? in|receipts?|\bin\b|\bcr\b/i);
+  const bal = find(/balance/i);
+  if (!(deb || cred)) return null;
+  if (!/date|description|details|particulars|transaction|narrative|balance/.test(t)) return null;
+  if (deb && cred && deb === cred) return null;
+  const c = s => s ? (s.x + s.x2) / 2 : null;
+  return { debX: c(deb), credX: c(cred), balX: c(bal) };
+}
+
+function extractTransactions(pages, fmtSetting) {
+  const lines = pages.flat();
+  const allText = lines.map(l => l.text).join('\n');
+  const nowY = new Date().getFullYear();
+  const ys = [...allText.matchAll(/\b(20\d{2})\b/g)].map(m => +m[1]).filter(y => y >= 2000 && y <= nowY + 1);
+  const years = ys.length ? { min: Math.min(...ys), max: Math.max(...ys) } : { min: nowY, max: nowY };
+  if (years.max - years.min > 1) years.min = years.max - 1;
+  let dmy = 0, mdy = 0;
+  for (const l of lines) {
+    const d = parseDateAt(l.text);
+    if (d && 'a' in d.parts) { if (d.parts.a > 12) dmy++; if (d.parts.b > 12) mdy++; }
+  }
+  const fmt = fmtSetting !== 'auto' ? fmtSetting : (mdy > dmy ? 'mdy' : 'dmy');
+  // Year-less dates in a statement that crosses New Year (Dec + Jan) but only prints the later year.
+  if (years.min === years.max) {
+    const ms = new Set();
+    for (const l of lines) {
+      const d = parseDateAt(l.text);
+      if (d && !d.parts.y) ms.add('a' in d.parts ? (fmt === 'mdy' ? d.parts.a : d.parts.b) : d.parts.m);
+    }
+    if ([...ms].some(m => m >= 10) && [...ms].some(m => m <= 3)) years.min = years.max - 1;
+  }
+
+  const out = [];
+  let cols = null, prevBal = null, lastDate = null;
+
+  function emit(date, desc, amts, line) {
+    let rest = [...amts], bal = null;
+    if (cols && cols.balX != null) {
+      const last = rest[rest.length - 1];
+      const dB = Math.abs(last.x - cols.balX);
+      const dO = Math.min(cols.debX != null ? Math.abs(last.x - cols.debX) : 1e9, cols.credX != null ? Math.abs(last.x - cols.credX) : 1e9);
+      if (dB < dO) bal = rest.pop();
+    } else if (rest.length >= 2) bal = rest.pop();
+    if (!rest.length) { if (bal) prevBal = bal.neg ? -bal.value : bal.value; return null; }
+    const a = rest.find(r => r.value !== 0);
+    if (!a) return null;
+    desc = desc.replace(/\s+/g, ' ').trim();
+    const balV = bal ? (bal.neg ? -bal.value : bal.value) : null;
+    let sign = null;
+    if (a.neg) sign = -1;
+    else if (a.cr) sign = 1;
+    else if (cols && cols.debX != null && cols.credX != null) {
+      sign = Math.abs(a.x - cols.debX) <= Math.abs(a.x - cols.credX) ? -1 : 1;
+    }
+    if (sign === null && balV !== null && prevBal !== null) {
+      if (Math.abs(prevBal - a.value - balV) < 0.015) sign = -1;
+      else if (Math.abs(prevBal + a.value - balV) < 0.015) sign = 1;
+    }
+    if (sign === null) sign = INCOME_RE.test(desc) ? 1 : -1;
+    if (balV !== null) prevBal = balV;
+    // Where the description column starts, so wrapped lines below it can be recognised by position.
+    const t = { date, desc: desc || '(no description)', amount: Math.round(sign * a.value * 100) / 100, balance: balV, _y: line.y, _h: line.h };
+    out.push(t);
+    return t;
+  }
+
+  for (const pageLines of pages) {
+    let pending = null, lastTxn = null, inTable = false;
+    const analyzed = pageLines.map(analyzeLine);
+    for (const [i, line] of pageLines.entries()) {
+      const L = analyzed[i], next = analyzed[i + 1];
+      const low = line.text.toLowerCase();
+      const head = detectHeader(line, L);
+      if (head) { cols = head; inTable = true; pending = null; lastTxn = null; continue; }
+      if (BAL_LINE_RE.test(low)) {
+        if (OPEN_BAL_RE.test(low) && L.amts.length) { const b = L.amts[L.amts.length - 1]; prevBal = b.neg ? -b.value : b.value; }
+        pending = null; lastTxn = null; continue;
+      }
+      const dm = parseDateAt(L.text);
+      if (dm) {
+        let desc = L.text.slice(dm.len).trim();
+        const dm2 = parseDateAt(desc);
+        if (dm2) desc = desc.slice(dm2.len).trim();
+        const iso = resolveDate(dm.parts, fmt, years);
+        if (!iso) continue;
+        lastDate = iso; inTable = true;
+        if (L.amts.length) { pending = null; lastTxn = emit(iso, desc, L.amts, line); }
+        else { pending = { date: iso, desc }; lastTxn = null; }
+      } else if (L.amts.length) {
+        if (SUMMARY_RE.test(low)) { pending = null; lastTxn = null; continue; }
+        if (pending) { lastTxn = emit(pending.date, pending.desc + ' ' + L.text, L.amts, line); pending = null; }
+        else if (lastDate && inTable && /[a-z]{2,}/i.test(L.text)) lastTxn = emit(lastDate, L.text, L.amts, line);
+      } else if (L.text) {
+        if (pending && pending.desc.length < 120 && !FOOTER_RE.test(low)) pending.desc += ' ' + L.text;
+        // An undated line with no amount, followed by an undated line WITH amounts, starts a new
+        // transaction (same day as the previous one) rather than continuing the last one.
+        else if (lastDate && inTable && next && next.amts.length && !parseDateAt(next.text) && !FOOTER_RE.test(low)) {
+          pending = { date: lastDate, desc: L.text }; lastTxn = null;
+        }
+        // Undated lines with no amount, after a transaction and before the next one (or a header/footer),
+        // are its description wrapping. No distance check: some PDFs report misleading text heights.
+        else if (lastTxn && (lastTxn._cont || 0) < 4 && L.text.length < 90 && !FOOTER_RE.test(low)) {
+          lastTxn.desc += ' ' + L.text; lastTxn._y = line.y; lastTxn._cont = (lastTxn._cont || 0) + 1;
+        } else lastTxn = null;
+      }
+    }
+  }
+  return { txns: out.map(({ _y, _h, _cont, ...t }) => t), fmt };
+}
+
+// ---------------------------------------------------------------------------
+// Pooling: reduce a description to a merchant key
+// ---------------------------------------------------------------------------
+const PROCESSORS = /^(SQ|TST|SP|PAYPAL|PP|IZ|ZTL|LS|CKO|GOOGLE|WWW)$/;
+const NOISE = new Set(('POS VIS VISA MASTERCARD MC DEBIT CREDIT CARD PURCHASE PAYMENT PMT DD SO BP FPI FPO BGC CHQ TFR CONTACTLESS ' +
+  'ONLINE BILL TO ACH WEB PPD DIRECT PREAUTH RECURRING INTERNATIONAL TRANSACTION CHECKCARD POINT OF SALE CHG APPLE PAY ' +
+  'FROM GOOGLEPAY APPLEPAY FASTER PAYMENTS STANDING ORDER REF REFERENCE ON AT VIA THE NON GBP USD EUR PKR FX FEE CD DEB DR CR LTD LIMITED PLC INC CO UK COM WWW HTTPS HTTP ' +
+  // Lead-ins used by many banks (incl. Pakistani: IBFT, Raast, inward/outward) before the actual name.
+  'MONEY TRANSFERRED TRANSFER TRANSFERS FUNDS FUND RECEIVED SENT CREDITED DEBITED IBFT IFT FT RAAST INWARD OUTWARD ' +
+  'MOBILE BANKING INTERNET INTER BANK APP INSTANT PK ' +
+  // Wallets/banks printed after the recipient's name, so "X JazzCash" and "X" via Raast pool together.
+  'SADAPAY EASYPAISA JAZZCASH NAYAPAY UPAISA ASAAN AC ASKARI ALFALAH UBL HBL MCB ABL NBP BOP JS ISLAMI MEEZAN FAYSAL SONERI').split(' '));
+// Everything after these words is a reference/trace number, not part of the name.
+const REF_TAIL_RE = /\b(?:ref|reference|stan|rrn|trx|txn|trace|narration|purpose|remarks?|id)\b.*$/i;
+// "Money Transferred to ABC XYZ 0000-…", "Funds Received from ALI TRADERS", "TFR TO MR AHMED":
+// pool by the person/business named after to/from, not by the generic lead-in.
+const PAYEE_RE = /\b(?:transferred|transfers?|trf|tfr|ibft|raast|payments?|paid|sent|remitted|received|funds?|credited|debited)\b.*?\b(?:to|from|by)\b\s+(?:(?:mr|mrs|ms|miss|a\/c|acct|account)\.?\s+)*(.+)$/i;
+function poolKey(desc, maxWords = 2) {
+  const payee = desc.match(PAYEE_RE)?.[1];
+  if (payee) {
+    // Names keep up to three words so "Muhammad Ali Khan" and "Muhammad Ali Raza" stay apart.
+    // Card purchases name a shop, often followed by its branch/town, so they keep two.
+    const k = poolKey(payee.replace(REF_TAIL_RE, ''), /\b(card|pos|purchase|visa|mastercard)\b/i.test(desc) ? 2 : 3);
+    if (k !== 'OTHER') return k;
+  }
+  let s = desc.toUpperCase();
+  if (s.includes('*')) {
+    const [before, ...after] = s.split('*');
+    const b = before.trim().split(/\s+/).pop() || '';
+    s = PROCESSORS.test(b) && after.join(' ').trim() ? after.join(' ') : (before.trim() || after.join(' '));
+  }
+  const words = s.replace(/[^A-Z0-9&'\- ]+/g, ' ').split(/\s+/).map(w => w.replace(/^-+|-+$/g, '')).filter(Boolean);
+  let kept = words.filter(w => !/\d/.test(w) && w.length > 1 && !NOISE.has(w));
+  if (!kept.length) kept = words.filter(w => !/\d/.test(w)).slice(0, 2);
+  return kept.slice(0, maxWords).join(' ') || 'OTHER';
+}
+
+const SUGGEST = [
+  [/tesco|sainsbury|asda|aldi|lidl|morrisons|waitrose|co-?op|ocado|iceland|whole foods|trader joe|kroger|safeway|costco|walmart|carrefour|grocer|supermarket|imtiaz|metro/i, 'Groceries'],
+  [/mcdonald|kfc|burger|pizza|domino|nando|starbucks|costa|pret|greggs|cafe|coffee|restaurant|deliveroo|just eat|uber eats|ubereats|doordash|grubhub|foodpanda|subway|eats/i, 'Eating out'],
+  [/uber|lyft|bolt|careem|tfl|trainline|rail|shell|bp |esso|texaco|petrol|fuel|parking|transport|bus|taxi|metro ?link|oyster/i, 'Transport'],
+  [/netflix|spotify|disney|prime video|apple\.com|icloud|youtube|hbo|hulu|audible|patreon|chatgpt|openai|adobe|microsoft|dropbox|subscription/i, 'Subscriptions'],
+  [/amazon|ebay|argos|ikea|zara|h&m|primark|next |john lewis|boots|etsy|shein|asos|daraz|target|best buy/i, 'Shopping'],
+  [/british gas|octopus|edf|eon|e\.on|thames water|water|electric|energy|council tax|vodafone|\bee\b|o2|three|virgin|bt |sky|broadband|insurance|utility|ptcl|k-electric|sui gas/i, 'Bills & utilities'],
+  [/rent|mortgage|letting|landlord|estate/i, 'Housing'],
+  [/pharmacy|doctor|dental|dentist|hospital|clinic|gym|fitness|puregym|nhs/i, 'Health'],
+  [/cinema|odeon|vue|cineworld|steam|playstation|xbox|nintendo|ticketmaster|theatre|concert/i, 'Entertainment'],
+  [/airline|airways|ryanair|easyjet|emirates|qatar|pia\b|hotel|airbnb|booking\.com|expedia|travel/i, 'Travel'],
+  [/\batm\b|cash|withdrawal/i, 'Cash'],
+  [/remitly|western union|worldremit|world remit|moneygram|xoom|taptap|sendwave|ria money|ria financial|lemfi|azimo|transfergo|small world|remittance|remit\b/i, 'Remittances'],
+  // Wise, Revolut, PayPal etc. carry both remittances and moves between your own accounts: no guess.
+  [/wise\b|transferwise|revolut|monzo|paypal|skrill|payoneer/i, null],
+  [/payment received|thank you|credit card|card repayment|american express|amex|barclaycard/i, 'Transfers'],
+  // Only clear moves between your own accounts: a plain "transfer to <person>" is real spending or income.
+  [/to savings|from savings|own account|between (my|own) accounts|internal transfer/i, 'Transfers'],
+  [/salary|payroll|wages|dividend|interest/i, 'Income'],
+].map(([re, name]) => [new RegExp('\\b(?:' + re.source + ')', 'i'), name]); // word starts only: "neTFLix" is not TfL
+// Name/keyword rules: a whole-word, case-insensitive match anywhere in the description.
+const kwRe = k => new RegExp('(?<![A-Za-z0-9])' + k.text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&').replace(/\s+/g, '\\s+') + '(?![A-Za-z0-9])', 'i');
+const keywordFor = desc => state.keywords.find(k => kwRe(k).test(desc)) || null;
+const poolFor = desc => { const k = keywordFor(desc); return k ? k.text.toUpperCase() : poolKey(desc); };
+function addKeyword(text, catId) {
+  const k = { id: uid(), text, cat: catId };
+  state.keywords.push(k);
+  state.rules[text.toUpperCase()] = catId;
+  let n = 0;
+  for (const t of state.txns) if (keywordFor(t.desc) === k) { t.pool = text.toUpperCase(); t.cat = catId; n++; }
+  return n;
+}
+function removeKeyword(id) {
+  const k = state.keywords.find(k => k.id === id);
+  if (!k) return;
+  state.keywords = state.keywords.filter(x => x !== k);
+  delete state.rules[k.text.toUpperCase()];
+  // Tags stay as they are; only the pooling goes back to normal.
+  for (const t of state.txns) if (t.pool === k.text.toUpperCase()) t.pool = poolFor(t.desc);
+}
+
+function suggestFor(key, sample) {
+  const text = key + ' ' + sample;
+  for (const [re, name] of SUGGEST) {
+    if (re.test(text)) { if (!name) return null; const c = tops().find(c => c.name.toLowerCase() === name.toLowerCase()); if (c) return c; }
+  }
+  return null;
+}
+
+// ---------------------------------------------------------------------------
+// Import
+// ---------------------------------------------------------------------------
+async function importFiles(files) {
+  const log = $('#import-log');
+  let addedTotal = 0;
+  for (const file of files) {
+    if (!/\.pdf$/i.test(file.name) && file.type !== 'application/pdf') continue;
+    const item = document.createElement('div');
+    item.className = 'item';
+    item.innerHTML = `<strong>${esc(file.name)}</strong> <span class="muted">reading…</span>`;
+    log.prepend(item);
+    try {
+      const pages = await readPdf(file);
+      const textLen = pages.flat().reduce((n, l) => n + l.text.length, 0);
+      const { txns, fmt } = extractTransactions(pages, state.settings.dateFmt);
+      const fileId = uid();
+      const existing = new Map(state.txns.filter(t => t.balance !== null).map(t => [`${t.date}|${t.amount}|${t.balance}`, t]));
+      let added = 0, dupes = 0, improved = 0;
+      for (const t of txns) {
+        const old = t.balance !== null && existing.get(`${t.date}|${t.amount}|${t.balance}`);
+        if (old) {
+          dupes++;
+          // Re-importing after a parser fix fills in descriptions that were cut short before. Tags are kept.
+          if (t.desc.length > old.desc.length && t.desc.startsWith(old.desc.trim())) {
+            old.desc = t.desc; old.pool = poolFor(t.desc); improved++;
+            if (!old.cat) { const kw = keywordFor(t.desc), rc = kw ? kw.cat : state.rules[old.pool]; if (rc && catById(rc)) old.cat = rc; }
+          }
+          continue;
+        }
+        const kw = keywordFor(t.desc);
+        const pool = kw ? kw.text.toUpperCase() : poolKey(t.desc);
+        const ruleCat = kw ? kw.cat : state.rules[pool];
+        state.txns.push({ id: uid(), ...t, pool, cat: ruleCat && catById(ruleCat) ? ruleCat : null, source: file.name, fileId });
+        added++;
+      }
+      state.files.push({ id: fileId, name: file.name, added, at: new Date().toISOString() });
+      addedTotal += added;
+      ui.rawText[fileId] = pages.map((p, i) => `--- page ${i + 1} ---\n` + p.map(l => l.text).join('\n')).join('\n');
+      ui.layout = ui.layout || {};
+      ui.layout[fileId] = pages.map((p, i) => `--- page ${i + 1} ---\n` + p.map(l =>
+        `y=${l.y.toFixed(1)} h=${l.h.toFixed(1)}  ` + l.segs.map(s => `[x=${s.x.toFixed(1)}] ${s.str}`).join('  ')).join('\n')).join('\n');
+      const dates = txns.map(t => t.date).sort();
+      const autoTagged = state.txns.filter(t => t.fileId === fileId && t.cat).length;
+      let warn = '';
+      if (textLen < 50) warn = 'No text found — this looks like a scanned image PDF, which can’t be read without OCR.';
+      else if (!txns.length) warn = 'No transactions recognised. Open “Show extracted text” to see what the parser saw.';
+      item.innerHTML = `<strong>${esc(file.name)}</strong> — ${pages.length} page${pages.length > 1 ? 's' : ''},
+        <strong>${added}</strong> transactions added${dupes ? `, ${dupes} duplicates skipped` : ''}${improved ? ` (${improved} of them updated with their full description)` : ''}${autoTagged ? `, ${autoTagged} auto-tagged from your earlier choices` : ''}
+        ${dates.length ? `<span class="muted"> · ${fmtDate(dates[0])} – ${fmtDate(dates[dates.length - 1])} · dates read as ${fmt === 'mdy' ? 'MM/DD' : 'DD/MM'}</span>` : ''}
+        ${warn ? `<div class="warn">${esc(warn)}</div>` : ''}
+        <details><summary class="muted">Show extracted text</summary><pre>${esc(ui.rawText[fileId])}</pre></details>
+        <details><summary class="muted">Show layout details (for troubleshooting)</summary><pre>${esc(ui.layout[fileId])}</pre></details>
+        <button class="ghost danger icon-btn" data-remove-file="${fileId}">Remove this statement’s transactions</button>`;
+      if (!state.settings.currency) {
+        // The statement's currency is the one printed most often (a single foreign purchase mustn't win).
+        const counts = {};
+        for (const m of pages.flat().map(l => l.text).join(' ').matchAll(/[£$€₹]|PKR|Rs\.?(?=\s?\d)/g)) {
+          const k = m[0] === 'PKR' ? 'PKR ' : m[0].startsWith('Rs') ? 'Rs ' : m[0];
+          counts[k] = (counts[k] || 0) + 1;
+        }
+        const sym = Object.keys(counts).sort((x, y) => counts[y] - counts[x])[0];
+        if (sym) { state.settings.currency = sym; $('#set-currency').value = sym.trim(); }
+      }
+    } catch (err) {
+      item.innerHTML = `<strong>${esc(file.name)}</strong> <div class="warn">Could not read this PDF: ${esc(err.message || err)}</div>`;
+    }
+  }
+  save();
+  renderAll();
+  if (addedTotal) { toast(`${addedTotal} transactions imported`); setView('sort'); }
+}
+
+// ---------------------------------------------------------------------------
+// Tagging
+// ---------------------------------------------------------------------------
+function tagPools(keys, catId) {
+  let n = 0;
+  for (const key of keys) {
+    for (const t of state.txns) if (t.pool === key && !t.cat) { t.cat = catId; n++; }
+    if (catId) state.rules[key] = catId; else delete state.rules[key];
+  }
+  return n;
+}
+function untagPool(key, catId) {
+  for (const t of state.txns) if (t.pool === key && t.cat === catId) t.cat = null;
+  delete state.rules[key];
+}
+function handleDrop(payload, catId) {
+  let msg = '';
+  if (payload.type === 'pools') {
+    if (catId) { const n = tagPools(payload.keys, catId); msg = `${n} transaction${n === 1 ? '' : 's'} → ${catLabel(catId)}`; }
+    else payload.keys.forEach(k => untagPool(k, payload.fromCat));
+    payload.keys.forEach(k => ui.selected.delete(k));
+  } else if (payload.type === 'txn') {
+    const t = state.txns.find(t => t.id === payload.id);
+    if (t) { t.cat = catId; msg = catId ? `1 transaction → ${catLabel(catId)}` : ''; }
+  }
+  save(); renderAll();
+  if (msg) toast(msg);
+}
+
+// ---------------------------------------------------------------------------
+// Rendering: Sort view
+// ---------------------------------------------------------------------------
+function poolsOf(txns) {
+  const map = new Map();
+  for (const t of txns) {
+    let p = map.get(t.pool);
+    if (!p) { p = { key: t.pool, txns: [], total: 0 }; map.set(t.pool, p); }
+    p.txns.push(t); p.total += t.amount;
+  }
+  for (const p of map.values()) p.txns.sort((a, b) => a.date.localeCompare(b.date));
+  return [...map.values()];
+}
+function catColorMap() {
+  // Colour follows the category, ranked once over ALL data so filters never repaint anything.
+  const spend = new Map();
+  for (const t of state.txns) { const top = t.cat && topOf(t.cat); if (top) spend.set(top.id, (spend.get(top.id) || 0) + Math.abs(t.amount)); }
+  const ranked = [...spend.entries()].sort((a, b) => b[1] - a[1]).map(e => e[0]);
+  const map = {};
+  ranked.slice(0, 7).forEach((id, i) => map[id] = `var(--s${i + 1})`);
+  return map;
+}
+
+function renderSort() {
+  const untagged = state.txns.filter(t => !t.cat);
+  const q = $('#pool-search').value.trim().toLowerCase();
+  let pools = poolsOf(untagged);
+  if (q) pools = pools.filter(p => p.key.toLowerCase().includes(q) || p.txns.some(t => t.desc.toLowerCase().includes(q)));
+  const sort = $('#pool-sort').value;
+  pools.sort(sort === 'count' ? (a, b) => b.txns.length - a.txns.length
+    : sort === 'name' ? (a, b) => a.key.localeCompare(b.key)
+    : (a, b) => Math.abs(b.total) - Math.abs(a.total));
+  for (const k of [...ui.selected]) if (!pools.some(p => p.key === k)) ui.selected.delete(k);
+
+  const total = state.txns.length;
+  $('#pool-title').textContent = untagged.length ? `To sort — ${untagged.length} transactions in ${poolsOf(untagged).length} pools` : 'To sort';
+  $('#progress-fill').style.width = total ? `${(100 * (total - untagged.length)) / total}%` : '0';
+
+  const list = $('#pool-list');
+  if (!total) list.innerHTML = `<div class="empty">No transactions yet. Import a statement first.</div>`;
+  else if (!untagged.length) list.innerHTML = `<div class="empty">Everything is sorted 🎉 — see the Summary tab.</div>`;
+  else if (!pools.length) list.innerHTML = `<div class="empty">Nothing matches “${esc(q)}”.</div>`;
+  else list.innerHTML = pools.map(p => {
+    const sug = suggestFor(p.key, p.txns[0].desc);
+    const first = p.txns[0].date, last = p.txns[p.txns.length - 1].date;
+    const open = ui.expanded.has(p.key);
+    return `<div class="pool ${ui.selected.has(p.key) ? 'selected' : ''}" draggable="true" data-pool="${esc(p.key)}">
+      <div class="pool-row">
+        <input type="checkbox" class="sel" aria-label="Select ${esc(titleCase(p.key))}" ${ui.selected.has(p.key) ? 'checked' : ''}>
+        <div class="pool-main">
+          <div class="pool-name" title="${esc(p.txns[0].desc)}">${esc(titleCase(p.key))}</div>
+          <div class="pool-meta">${p.txns.length} transaction${p.txns.length > 1 ? 's' : ''} · ${fmtDate(first)}${first !== last ? ' – ' + fmtDate(last) : ''}</div>
+        </div>
+        ${sug ? `<button class="suggest" data-suggest="${sug.id}" title="Tag as ${esc(sug.name)}">→ ${esc(sug.name)}</button>` : ''}
+        <div class="num ${p.total > 0 ? 'pos' : ''}">${money(p.total, true)}</div>
+        <button class="ghost del-pool" data-del-pool="${esc(p.key)}" title="Delete all ${p.txns.length} transaction${p.txns.length > 1 ? 's' : ''} in this pool" aria-label="Delete pool"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+        <button class="ghost expand" aria-expanded="${open}" title="Show transactions">${open ? '▴' : '▾'}</button>
+      </div>
+      ${open ? `<div class="pool-txns">${p.txns.map(t => txnRow(t)).join('')}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  const n = ui.selected.size;
+  $('#sel-count').textContent = n ? `${n} selected` : '';
+  $('#btn-clear-sel').hidden = !n;
+  $('#btn-del-sel').hidden = !n;
+  $('#cat-hint').textContent = n ? `Click a category to tag ${n} selected pool${n > 1 ? 's' : ''}` : 'Drag pools here';
+  $('#btn-accept-all').hidden = !pools.some(p => suggestFor(p.key, p.txns[0].desc));
+
+  const colors = catColorMap();
+  $('#cats').innerHTML = tops().map(c => {
+    const ts = state.txns.filter(t => inCat(t, c.id));
+    const sum = ts.reduce((s, t) => s + t.amount, 0);
+    const subs = subsOf(c.id).map(sc => {
+      const k = state.txns.filter(t => t.cat === sc.id).length;
+      return `<span class="subcat ${ui.openCat === sc.id ? 'open' : ''}" data-cat="${sc.id}" tabindex="0" title="${esc(catLabel(sc.id))}">${esc(sc.name)}${k ? `<span class="muted">${k}</span>` : ''}</span>`;
+    }).join('');
+    return `<div class="cat ${n ? 'armed' : ''} ${ui.openCat === c.id ? 'open' : ''}" data-cat="${c.id}" tabindex="0">
+      <div class="cat-name"><span class="dot" style="background:${colors[c.id] || 'var(--other)'}"></span>${esc(c.name)}</div>
+      <div class="cat-meta">${ts.length ? `${ts.length} · <span class="num">${money(sum, true)}</span>` : 'empty'}${c.exclude ? ' · excluded' : ''}</div>
+      <div class="subs">${subs}<span class="subcat add" data-add-sub="${c.id}" title="Add a sub-category to ${esc(c.name)}">+ sub</span></div>
+    </div>`;
+  }).join('');
+  renderCatDetail();
+  renderKeywords();
+}
+function renderKeywords() {
+  const sel = $('#kw-cat'), cur = sel.value;
+  sel.innerHTML = catOptions(cur);
+  $('#kw-list').innerHTML = state.keywords.map(k => {
+    const n = state.txns.filter(t => keywordFor(t.desc) === k).length;
+    return `<div class="kw-row"><span>“${esc(k.text)}”</span><span class="muted">→</span><strong>${esc(catLabel(k.cat) || '?')}</strong>
+      <span class="muted">· ${n} transaction${n === 1 ? '' : 's'}</span>
+      <button class="ghost icon-btn" data-del-kw="${k.id}" title="Remove rule (tags already applied stay)">✕</button></div>`;
+  }).join('');
+}
+// ---------------------------------------------------------------------------
+// Transaction details dialog
+// ---------------------------------------------------------------------------
+function openTxn(id) {
+  const t = state.txns.find(t => t.id === id);
+  const d = $('#txn-dialog');
+  if (!t) { if (d.open) d.close(); return; }
+  ui.dialogTxn = id;
+  const [y, m, dd] = t.date.split('-').map(Number);
+  const longDate = new Date(y, m - 1, dd).toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
+  const inPool = state.txns.filter(x => x.pool === t.pool);
+  const poolTotal = inPool.reduce((s, x) => s + x.amount, 0);
+  const kw = keywordFor(t.desc);
+  d.innerHTML = `<div class="dlg-head">
+      <div><div class="dlg-amt num ${t.amount > 0 ? 'pos' : ''}">${money(t.amount, true)}</div>
+      <div class="muted">${t.amount < 0 ? 'Money out' : 'Money in'} · ${esc(longDate)}</div></div>
+      <button class="ghost" data-dlg-close aria-label="Close">✕</button>
+    </div>
+    <dl class="dlg-grid">
+      <dt>Description</dt><dd class="dlg-desc">${esc(t.desc)}</dd>
+      <dt>Category</dt><dd><select data-dlg-cat aria-label="Category"><option value="">— untagged —</option>${catOptions(t.cat)}</select>
+        ${kw ? `<div class="hint">Matched by your rule “${esc(kw.text)}”</div>` : ''}</dd>
+      <dt>Pool</dt><dd>${esc(titleCase(t.pool))} <span class="muted">· ${inPool.length} transaction${inPool.length === 1 ? '' : 's'}, <span class="num">${money(poolTotal, true)}</span> in total</span></dd>
+      <dt>Balance after</dt><dd class="num">${t.balance !== null ? money(t.balance) : '<span class="muted">not shown on statement</span>'}</dd>
+      <dt>Statement</dt><dd>${esc(t.source)}</dd>
+    </dl>
+    <div class="dlg-actions">
+      <button data-dlg-pool>Show all in this pool</button>
+      <button data-dlg-flip title="Use if the app got money in / out the wrong way round">Flip in / out</button>
+      <span class="spacer"></span>
+      <button class="danger" data-dlg-del>Delete</button>
+      ${inPool.length > 1 ? `<button class="danger" data-dlg-del-pool>Delete whole pool (${inPool.length})</button>` : ''}
+    </div>`;
+  if (!d.open) d.showModal();
+}
+$('#txn-dialog').addEventListener('click', e => {
+  const d = $('#txn-dialog');
+  if (e.target === d || e.target.closest('[data-dlg-close]')) return d.close();  // backdrop or ✕
+  const t = state.txns.find(t => t.id === ui.dialogTxn); if (!t) return;
+  if (e.target.closest('[data-dlg-flip]')) { t.amount = -t.amount; save(); renderAll(); openTxn(t.id); }
+  if (e.target.closest('[data-dlg-del]')) { d.close(); if (!deleteTxns([t], 'this transaction')) openTxn(t.id); }
+  if (e.target.closest('[data-dlg-del-pool]')) {
+    d.close();
+    if (!deleteTxns(state.txns.filter(x => x.pool === t.pool), `the whole pool “${titleCase(t.pool)}”`)) openTxn(t.id);
+  }
+  if (e.target.closest('[data-dlg-pool]')) {
+    d.close(); $('#tx-search').value = ''; $('#tx-cat').value = 'any'; $('#tx-period').value = 'all';
+    ui.txPool = t.pool; setView('txns');
+  }
+});
+$('#txn-dialog').addEventListener('change', e => {
+  if (!e.target.matches('[data-dlg-cat]')) return;
+  const t = state.txns.find(t => t.id === ui.dialogTxn); if (!t) return;
+  t.cat = e.target.value || null; save(); renderAll();
+  toast(t.cat ? `Tagged as ${catLabel(t.cat)}` : 'Un-tagged');
+});
+
+function txnRow(t, extra = '') {
+  return `<div class="txn-row" draggable="true" data-txn="${t.id}" tabindex="0" title="Click for details, or drag onto a category">
+    <span class="muted">${fmtDate(t.date)}</span><span class="d" title="${esc(t.desc)}">${esc(t.desc)}</span>
+    <span class="num ${t.amount > 0 ? 'pos' : ''}">${money(t.amount, true)}${extra}</span></div>`;
+}
+function renderCatDetail() {
+  const box = $('#cat-detail');
+  const c = catById(ui.openCat);
+  if (!c) { box.hidden = true; return; }
+  box.hidden = false;
+  // One entry per (pool, exact category), so pools in a sub-category can be moved on their own.
+  const groups = new Map();
+  for (const t of state.txns.filter(t => inCat(t, c.id))) {
+    const k = t.pool + '|' + t.cat;
+    const g = groups.get(k) || { key: t.pool, cat: t.cat, txns: [], total: 0 };
+    g.txns.push(t); g.total += t.amount; groups.set(k, g);
+  }
+  const pools = [...groups.values()].sort((a, b) => Math.abs(b.total) - Math.abs(a.total));
+  const parent = c.parent && catById(c.parent);
+  box.innerHTML = `<div class="detail-head">
+      <input type="text" id="cat-rename" value="${esc(c.name)}" aria-label="Category name">
+      ${parent ? `<span class="muted">sub-category of <strong>${esc(parent.name)}</strong></span>`
+        : `<label><input type="checkbox" id="cat-exclude" ${c.exclude ? 'checked' : ''}> exclude from totals</label>`}
+      <button class="ghost danger" id="cat-delete">Delete</button>
+      <button class="ghost" id="cat-close" aria-label="Close">✕</button>
+    </div>
+    ${parent ? '' : `<form class="add-cat" id="sub-form" style="margin:0 0 12px">
+      <input type="text" id="sub-new" placeholder="Add a sub-category to ${esc(c.name)}, e.g. Chicken" aria-label="New sub-category">
+      <button type="submit">Add sub-category</button></form>`}
+    ${pools.length ? `<div class="pool-list" style="min-height:0">${pools.map(p => `
+      <div class="pool" draggable="true" data-pool="${esc(p.key)}" data-from-cat="${p.cat}">
+        <div class="pool-row">
+          <div class="pool-main"><div class="pool-name">${esc(titleCase(p.key))}${p.cat !== c.id ? `<span class="tag-sub">${esc(catById(p.cat)?.name || '')}</span>` : ''}</div>
+          <div class="pool-meta">${p.txns.length} transaction${p.txns.length > 1 ? 's' : ''}</div></div>
+          <div class="num ${p.total > 0 ? 'pos' : ''}">${money(p.total, true)}</div>
+          <button class="ghost icon-btn" data-untag="${esc(p.key)}" data-from="${p.cat}" title="Move back to To sort">Un-tag</button>
+          <button class="ghost del-pool" data-del-pool="${esc(p.key)}" data-from="${p.cat}" title="Delete these ${p.txns.length} transaction${p.txns.length > 1 ? 's' : ''}" aria-label="Delete pool"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4h8v2M6 6l1 14h10l1-14"/></svg></button>
+        </div>
+      </div>`).join('')}</div>
+      <div class="hint">Drag a pool back to “To sort”, or onto another category or sub-category to move it.</div>`
+    : `<div class="empty">Nothing tagged here yet.</div>`}`;
+}
+
+// ---------------------------------------------------------------------------
+// Rendering: Transactions table
+// ---------------------------------------------------------------------------
+function periodOptions(sel) {
+  const months = [...new Set(state.txns.map(t => t.date.slice(0, 7)))].sort().reverse();
+  const years = [...new Set(months.map(m => m.slice(0, 4)))];
+  const cur = sel.value || 'all';
+  sel.innerHTML = `<option value="all">All time</option>` +
+    (years.length > 1 ? years.map(y => `<option value="Y:${y}">${y}</option>`).join('') : '') +
+    months.map(m => `<option value="M:${m}">${monthLabel(m)}</option>`).join('');
+  sel.value = [...sel.options].some(o => o.value === cur) ? cur : 'all';
+}
+const inPeriod = (t, p) => p === 'all' || (p[0] === 'Y' ? t.date.startsWith(p.slice(2)) : t.date.startsWith(p.slice(2)));
+
+function renderTxns() {
+  periodOptions($('#tx-period'));
+  const catSel = $('#tx-cat'), curCat = catSel.value || 'any';
+  catSel.innerHTML = `<option value="any">All categories</option><option value="none">Untagged</option>` + catOptions(curCat);
+  catSel.value = [...catSel.options].some(o => o.value === curCat) ? curCat : 'any';
+  const q = $('#tx-search').value.trim().toLowerCase(), per = $('#tx-period').value;
+  const rows = state.txns.filter(t =>
+    inPeriod(t, per) && (!q || t.desc.toLowerCase().includes(q)) && (!ui.txPool || t.pool === ui.txPool) && (!ui.txFile || (t.fileId || 'src:' + t.source) === ui.txFile) &&
+    (catSel.value === 'any' || (catSel.value === 'none' ? !t.cat : inCat(t, catSel.value)))
+  ).sort((a, b) => b.date.localeCompare(a.date));
+  const fileName = ui.txFile && importedStatements().find(f => f.id === ui.txFile)?.name;
+  $('#tx-count').innerHTML = `${rows.length} shown` + (ui.txPool
+    ? ` · pool <strong>${esc(titleCase(ui.txPool))}</strong> <button class="ghost icon-btn" data-clear-pool title="Show all pools">✕</button>` : '') + (fileName
+    ? ` · statement <strong>${esc(fileName)}</strong> <button class="ghost icon-btn" data-clear-file title="Show all statements">✕</button>` : '');
+  const opts = `<option value="">— untagged —</option>` + catOptions(null);
+  $('#tx-body').innerHTML = rows.length ? rows.map(t => `<tr data-id="${t.id}">
+      <td class="num">${fmtDate(t.date)}</td>
+      <td><div class="desc" title="${esc(t.desc)}">${esc(t.desc)}</div><div class="src">${esc(titleCase(t.pool))} · ${esc(t.source)}</div></td>
+      <td><select data-setcat>${opts.replace(`value="${t.cat || ''}"`, `value="${t.cat || ''}" selected`)}</select></td>
+      <td class="r num ${t.amount > 0 ? 'pos' : ''}">${money(t.amount, true)}</td>
+      <td class="r num muted">${t.balance !== null ? money(t.balance) : ''}</td>
+      <td class="r" style="white-space:nowrap"><button class="ghost icon-btn" data-flip title="Flip money in / money out">±</button><button class="ghost icon-btn danger" data-del title="Delete row">✕</button></td>
+    </tr>`).join('') : `<tr><td colspan="6" class="muted" style="text-align:center;padding:24px">No transactions.</td></tr>`;
+}
+
+// ---------------------------------------------------------------------------
+// Rendering: Summary
+// ---------------------------------------------------------------------------
+const charts = {};
+const cssVar = name => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+const resolveColor = c => c.startsWith('var(') ? cssVar(c.slice(4, -1)) : c;
+
+function renderSummary() {
+  periodOptions($('#sum-period'));
+  const per = $('#sum-period').value;
+  const txns = state.txns.filter(t => inPeriod(t, per) && !isExcluded(t.cat));
+  const byCat = new Map(), bySub = new Map();
+  for (const t of txns) {
+    const k = topOf(t.cat)?.id || 'untagged';
+    const e = byCat.get(k) || { net: 0, n: 0 };
+    e.net += t.amount; e.n++; byCat.set(k, e);
+    if (k === 'untagged') continue;
+    const subs = bySub.get(k) || new Map(), sk = t.cat === k ? 'general' : t.cat;
+    const se = subs.get(sk) || { net: 0, n: 0 };
+    se.net += t.amount; se.n++; subs.set(sk, se); bySub.set(k, subs);
+  }
+  const name = k => k === 'untagged' ? 'Untagged' : catById(k)?.name || '?';
+  // A category whose net is negative is spending (refunds reduce it); net positive is money in.
+  const spend = [...byCat.entries()].filter(([, e]) => e.net < 0).map(([k, e]) => ({ k, v: -e.net, n: e.n })).sort((a, b) => b.v - a.v);
+  const income = [...byCat.entries()].filter(([, e]) => e.net > 0).map(([k, e]) => ({ k, v: e.net, n: e.n })).sort((a, b) => b.v - a.v);
+  const totalSpend = spend.reduce((s, x) => s + x.v, 0), totalIn = income.reduce((s, x) => s + x.v, 0);
+  const allInPeriod = state.txns.filter(t => inPeriod(t, per));
+  const taggedPct = allInPeriod.length ? Math.round(100 * allInPeriod.filter(t => t.cat).length / allInPeriod.length) : 0;
+  const months = new Set(txns.map(t => t.date.slice(0, 7))).size || 1;
+
+  $('#kpis').innerHTML = [
+    ['Money out', money(totalSpend), ''],
+    ['Money in', money(totalIn), ''],
+    ['Net', money(totalIn - totalSpend, true), ''],
+    [months > 1 ? 'Average spend / month' : 'Transactions', months > 1 ? money(totalSpend / months) : String(txns.length), ''],
+    ['Sorted', `${taggedPct}%`, ''],
+  ].map(([l, v]) => `<div class="kpi"><div class="label">${l}</div><div class="value num">${v}</div></div>`).join('');
+
+  const colors = catColorMap();
+  const colorOf = k => k === 'untagged' ? 'var(--untagged)' : colors[k] || 'var(--other)';
+  // Categories without a palette slot fold into "Everything else" so no hue is ever reused.
+  const slices = [];
+  let rest = { k: 'rest', v: 0, n: 0, names: [] };
+  for (const s of spend) {
+    if (s.k === 'untagged' || colors[s.k]) slices.push(s);
+    else { rest.v += s.v; rest.n += s.n; rest.names.push(name(s.k)); }
+  }
+  if (rest.v > 0) slices.push(rest);
+  const sliceName = s => s.k === 'rest' ? `Everything else (${rest.names.length})` : name(s.k);
+  const sliceColor = s => s.k === 'rest' ? 'var(--other)' : colorOf(s.k);
+
+  const surface = cssVar('--surface'), text2 = cssVar('--text-2'), border = cssVar('--border');
+  Chart.defaults.font.family = getComputedStyle(document.body).fontFamily;
+  Chart.defaults.color = text2;
+
+  charts.donut?.destroy();
+  if (totalSpend > 0) {
+    charts.donut = new Chart($('#chart-donut'), {
+      type: 'doughnut',
+      data: { labels: slices.map(sliceName), datasets: [{ data: slices.map(s => +s.v.toFixed(2)), backgroundColor: slices.map(s => resolveColor(sliceColor(s))), borderColor: surface, borderWidth: 2, hoverOffset: 6 }] },
+      options: {
+        maintainAspectRatio: false, cutout: '62%', animation: { duration: 300 },
+        plugins: {
+          legend: { display: false },
+          tooltip: { callbacks: { label: c => ` ${money(c.raw)} · ${(100 * c.raw / totalSpend).toFixed(1)}%` } },
+        },
+      },
+      plugins: [{ id: 'center', afterDraw(ch) {
+        const { ctx, chartArea: a } = ch; const cx = (a.left + a.right) / 2, cy = (a.top + a.bottom) / 2;
+        ctx.save(); ctx.textAlign = 'center'; ctx.fillStyle = cssVar('--text-2'); ctx.font = '12px ' + Chart.defaults.font.family;
+        ctx.fillText('Total spent', cx, cy - 12); ctx.fillStyle = cssVar('--text'); ctx.font = '600 18px ' + Chart.defaults.font.family;
+        ctx.fillText(money(totalSpend), cx, cy + 10); ctx.restore();
+      } }],
+    });
+  }
+
+  // Each category row is followed by its sub-categories (only when it has any in use).
+  const subRows = (s, total, max, sign) => {
+    const subs = bySub.get(s.k);
+    if (!subs || ![...subs.keys()].some(k => k !== 'general')) return '';
+    return [...subs.entries()].map(([k, e]) => ({ k, v: sign * e.net, n: e.n })).filter(x => x.v > 0).sort((a, b) => b.v - a.v).map(x => `<tr class="subrow">
+      <td>${x.k === 'general' ? `<span class="muted">(no sub-category)</span>` : esc(catById(x.k)?.name || '?')}</td>
+      <td><div class="share-bar"><div style="width:${(100 * x.v / max).toFixed(1)}%;background:${colorOf(s.k)}"></div></div></td>
+      <td class="r num">${money(x.v)}</td><td class="r num">${(100 * x.v / total).toFixed(1)}%</td><td class="r num muted">${x.n}</td></tr>`).join('');
+  };
+  const shareRows = (rows, total, label, sign) => rows.length ? `<thead><tr><th>Category</th><th></th><th class="r">${label}</th><th class="r">%</th><th class="r">Count</th></tr></thead><tbody>` +
+    rows.map(s => `<tr>
+      <td><span class="cat-name" style="font-weight:500"><span class="dot" style="background:${s.k === 'untagged' ? 'var(--untagged)' : colorOf(s.k)}"></span>${esc(name(s.k))}</span></td>
+      <td style="width:30%"><div class="share-bar"><div style="width:${(100 * s.v / rows[0].v).toFixed(1)}%;background:${s.k === 'untagged' ? 'var(--untagged)' : colorOf(s.k)}"></div></div></td>
+      <td class="r num">${money(s.v)}</td><td class="r num">${(100 * s.v / total).toFixed(1)}%</td><td class="r num muted">${s.n}</td></tr>` + subRows(s, total, rows[0].v, sign)).join('') +
+    `<tr><td><strong>Total</strong></td><td></td><td class="r num"><strong>${money(total)}</strong></td><td class="r num">100%</td><td></td></tr></tbody>`
+    : `<tr><td class="muted">Nothing here for this period.</td></tr>`;
+  $('#share-table').innerHTML = shareRows(spend, totalSpend, 'Spent', -1);
+  $('#income-table').innerHTML = shareRows(income, totalIn, 'Received', 1);
+
+  // Monthly stacked bars (only when the period covers more than one month).
+  charts.monthly?.destroy();
+  const monthKeys = [...new Set(txns.map(t => t.date.slice(0, 7)))].sort();
+  $('#monthly-panel').hidden = monthKeys.length < 2 || totalSpend === 0;
+  if (monthKeys.length >= 2 && totalSpend > 0) {
+    const sliceOf = k => (k === 'untagged' || colors[k]) ? k : 'rest';
+    const spendKeys = new Set(spend.map(s => s.k));
+    const grid = new Map(slices.map(s => [s.k, monthKeys.map(() => 0)]));
+    for (const t of txns) {
+      const k = topOf(t.cat)?.id || 'untagged';
+      if (!spendKeys.has(k)) continue;
+      const row = grid.get(sliceOf(k)); if (!row) continue;
+      row[monthKeys.indexOf(t.date.slice(0, 7))] -= t.amount;
+    }
+    charts.monthly = new Chart($('#chart-monthly'), {
+      type: 'bar',
+      data: {
+        labels: monthKeys.map(monthLabel),
+        datasets: slices.map(s => ({
+          label: sliceName(s), data: grid.get(s.k).map(v => Math.max(0, +v.toFixed(2))),
+          backgroundColor: resolveColor(sliceColor(s)), borderColor: surface, borderWidth: { top: 2 }, borderSkipped: 'bottom', maxBarThickness: 48,
+        })),
+      },
+      options: {
+        maintainAspectRatio: false, animation: { duration: 300 },
+        interaction: { mode: 'index', intersect: false },
+        scales: {
+          x: { stacked: true, grid: { display: false } },
+          y: { stacked: true, grid: { color: border }, border: { display: false }, ticks: { callback: v => money(v) } },
+        },
+        plugins: {
+          legend: { position: 'bottom', labels: { boxWidth: 10, boxHeight: 10, usePointStyle: true, pointStyle: 'circle' } },
+          tooltip: { itemSort: (a, b) => b.raw - a.raw, filter: i => i.raw > 0, callbacks: {
+            label: c => ` ${c.dataset.label}: ${money(c.raw)}`,
+            footer: items => 'Total: ' + money(items.reduce((s, i) => s + i.raw, 0)),
+          } },
+        },
+      },
+    });
+  }
+}
+
+// ---------------------------------------------------------------------------
+// View switching & render
+// ---------------------------------------------------------------------------
+function setView(v) {
+  ui.view = v;
+  $$('nav button').forEach(b => b.setAttribute('aria-selected', b.dataset.view === v));
+  $$('.view').forEach(s => s.classList.toggle('active', s.id === 'view-' + v));
+  try { sessionStorage.setItem('ss-view', v); } catch {}
+  renderAll();
+}
+// ---------------------------------------------------------------------------
+// Imported statements (built from saved data, so it survives reloads)
+// ---------------------------------------------------------------------------
+function importedStatements() {
+  const byFile = new Map();
+  for (const t of state.txns) {
+    const k = t.fileId || 'src:' + t.source;
+    const e = byFile.get(k) || { id: k, txns: [] };
+    e.txns.push(t); byFile.set(k, e);
+  }
+  // Keep statements whose rows were all duplicates (0 transactions) visible too.
+  for (const f of state.files) if (!byFile.has(f.id)) byFile.set(f.id, { id: f.id, txns: [] });
+  return [...byFile.values()].map(e => {
+    const meta = state.files.find(f => f.id === e.id) || {};
+    const dates = e.txns.map(t => t.date).sort();
+    return {
+      ...e, name: meta.name || e.txns[0]?.source || 'Unknown statement', at: meta.at || null,
+      from: dates[0], to: dates[dates.length - 1],
+      moneyIn: e.txns.filter(t => t.amount > 0).reduce((s, t) => s + t.amount, 0),
+      moneyOut: -e.txns.filter(t => t.amount < 0).reduce((s, t) => s + t.amount, 0),
+      tagged: e.txns.filter(t => t.cat).length,
+    };
+  }).sort((a, b) => (b.at || '').localeCompare(a.at || ''));
+}
+function renderImports() {
+  const list = importedStatements();
+  $('#imports').innerHTML = list.length ? `<h3>Imported statements (${list.length})</h3>
+    <div class="table-wrap"><table>
+      <thead><tr><th>Statement</th><th>Period</th><th class="r">Transactions</th><th class="r">Money in</th><th class="r">Money out</th></tr></thead>
+      <tbody>${list.map(f => `<tr>
+        <td><div class="name">${esc(f.name)}</div><div class="meta">${f.at ? 'imported ' + new Date(f.at).toLocaleString(undefined, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}</div>
+          <div class="actions"><button class="icon-btn" data-view-file="${esc(f.id)}" ${f.txns.length ? '' : 'disabled'}>View transactions</button>
+          <button class="icon-btn danger" data-remove-file="${esc(f.id)}">Remove</button></div></td>
+        <td class="num">${f.from ? `${fmtDate(f.from)} – ${fmtDate(f.to)}` : '<span class="muted">—</span>'}</td>
+        <td class="r num">${f.txns.length}<div class="meta">${f.tagged} sorted</div></td>
+        <td class="r num pos">${f.moneyIn ? money(f.moneyIn) : ''}</td>
+        <td class="r num">${f.moneyOut ? money(f.moneyOut) : ''}</td>
+      </tr>`).join('')}</tbody></table></div>` : '';
+}
+function removeStatement(id) {
+  const f = importedStatements().find(f => f.id === id);
+  if (!f) return;
+  if (!confirm(`Remove “${f.name}” and its ${f.txns.length} transaction${f.txns.length === 1 ? '' : 's'}?\n\nYour categories, sub-categories and name rules are kept, so re-importing it later sorts it the same way again.`)) return;
+  const ids = new Set(f.txns.map(t => t.id));
+  state.txns = state.txns.filter(t => !ids.has(t.id));
+  state.files = state.files.filter(x => x.id !== id);
+  $$(`#import-log [data-remove-file="${CSS.escape(id)}"]`).forEach(b => b.closest('.item')?.remove());
+  if (ui.txFile === id) ui.txFile = null;
+  save(); renderAll();
+  toast(`Removed ${f.name} (${f.txns.length} transactions)`);
+}
+
+function renderAll() {
+  $('#badge-untagged').textContent = state.txns.filter(t => !t.cat).length;
+  if (ui.view === 'import') renderImports();
+  if (ui.view === 'sort') renderSort();
+  if (ui.view === 'txns') renderTxns();
+  if (ui.view === 'summary') renderSummary();
+}
+
+// ---------------------------------------------------------------------------
+// Events
+// ---------------------------------------------------------------------------
+$$('nav button').forEach(b => b.addEventListener('click', () => setView(b.dataset.view)));
+
+// Import
+$('#btn-pick').addEventListener('click', () => $('#file-input').click());
+$('#file-input').addEventListener('change', e => { importFiles([...e.target.files]); e.target.value = ''; });
+const dz = $('#dropzone');
+dz.addEventListener('dragover', e => { e.preventDefault(); dz.classList.add('over'); });
+dz.addEventListener('dragleave', () => dz.classList.remove('over'));
+dz.addEventListener('drop', e => { e.preventDefault(); dz.classList.remove('over'); importFiles([...e.dataTransfer.files]); });
+// Stop the browser from navigating away if a PDF is dropped outside the drop zone.
+window.addEventListener('dragover', e => { if (e.dataTransfer?.types.includes('Files')) e.preventDefault(); });
+window.addEventListener('drop', e => { if (e.dataTransfer?.types.includes('Files')) e.preventDefault(); });
+$('#set-datefmt').value = state.settings.dateFmt;
+$('#set-datefmt').addEventListener('change', e => { state.settings.dateFmt = e.target.value; save(); });
+$('#set-currency').value = state.settings.currency;
+$('#set-currency').addEventListener('input', e => { const v = e.target.value.trim(); state.settings.currency = /^[a-z]{2,}\.?$/i.test(v) ? v + ' ' : v; save(); renderAll(); });
+$('#import-log').addEventListener('click', e => { const id = e.target.dataset?.removeFile; if (id) removeStatement(id); });
+$('#imports').addEventListener('click', e => {
+  const rm = e.target.closest('[data-remove-file]');
+  if (rm) return removeStatement(rm.dataset.removeFile);
+  const view = e.target.closest('[data-view-file]');
+  if (view) {
+    $('#tx-search').value = ''; $('#tx-cat').value = 'any'; $('#tx-period').value = 'all';
+    ui.txPool = null; ui.txFile = view.dataset.viewFile; setView('txns');
+  }
+});
+
+// Sort: drag sources
+let dragPayload = null;
+document.addEventListener('dragstart', e => {
+  const txnEl = e.target.closest?.('[data-txn]');
+  const poolEl = e.target.closest?.('[data-pool]');
+  if (txnEl) dragPayload = { type: 'txn', id: txnEl.dataset.txn };
+  else if (poolEl) {
+    const key = poolEl.dataset.pool, fromCat = poolEl.dataset.fromCat || null;
+    const keys = !fromCat && ui.selected.has(key) ? [...ui.selected] : [key];
+    dragPayload = { type: 'pools', keys, fromCat };
+    poolEl.classList.add('dragging');
+  } else return;
+  e.dataTransfer.effectAllowed = 'move';
+  e.dataTransfer.setData('text/plain', 'statement-sorter');
+});
+document.addEventListener('dragend', () => { dragPayload = null; $$('.dragging, .over').forEach(el => el.classList.remove('dragging', 'over')); });
+
+// Sort: drop targets (categories, and the pool list to un-tag)
+function dropTarget(e) {
+  if (!dragPayload) return null;
+  const cat = e.target.closest?.('.subcat[data-cat]') || e.target.closest?.('.cat');
+  if (cat) return cat;
+  const list = e.target.closest?.('#pool-list');
+  if (list && (dragPayload.fromCat || dragPayload.type === 'txn')) return list;
+  return null;
+}
+document.addEventListener('dragover', e => {
+  const t = dropTarget(e);
+  if (!t) return;
+  e.preventDefault();
+  $$('.over').forEach(el => el !== t && el.classList.remove('over'));
+  t.classList.add('over');
+});
+document.addEventListener('dragleave', e => { const t = dropTarget(e); if (t && !t.contains(e.relatedTarget)) t.classList.remove('over'); });
+document.addEventListener('drop', e => {
+  const t = dropTarget(e);
+  if (!t) return;
+  e.preventDefault();
+  const payload = dragPayload; dragPayload = null;
+  if (t.dataset.cat) {
+    const catId = t.dataset.cat;
+    if (payload.type === 'pools' && payload.fromCat) {
+      if (payload.fromCat === catId) return renderAll();
+      payload.keys.forEach(k => untagPool(k, payload.fromCat));
+      handleDrop({ type: 'pools', keys: payload.keys }, catId);
+    } else handleDrop(payload, catId);
+  } else {
+    if (payload.type === 'txn') handleDrop(payload, null);
+    else handleDrop(payload, null);
+  }
+});
+
+// Sort: clicks
+$('#pool-list').addEventListener('click', e => {
+  const row = e.target.closest('.txn-row');
+  if (row) return openTxn(row.dataset.txn);
+  const pool = e.target.closest('.pool');
+  if (!pool) return;
+  const key = pool.dataset.pool;
+  if (e.target.closest('[data-del-pool]')) {
+    const list = state.txns.filter(t => t.pool === key && !t.cat);
+    if (deleteTxns(list, `pool “${titleCase(key)}”`)) ui.selected.delete(key);
+    return;
+  }
+  if (e.target.matches('.sel')) { e.target.checked ? ui.selected.add(key) : ui.selected.delete(key); return renderSort(); }
+  if (e.target.closest('.expand')) { ui.expanded.has(key) ? ui.expanded.delete(key) : ui.expanded.add(key); return renderSort(); }
+  const sug = e.target.closest('[data-suggest]');
+  if (sug) return handleDrop({ type: 'pools', keys: [key] }, sug.dataset.suggest);
+  if (!e.target.closest('.pool-txns')) { ui.selected.has(key) ? ui.selected.delete(key) : ui.selected.add(key); renderSort(); }
+});
+$('#btn-clear-sel').addEventListener('click', () => { ui.selected.clear(); renderSort(); });
+$('#btn-del-sel').addEventListener('click', () => {
+  const keys = new Set(ui.selected);
+  const list = state.txns.filter(t => keys.has(t.pool) && !t.cat);
+  if (deleteTxns(list, `${keys.size} selected pool${keys.size > 1 ? 's' : ''}`)) { ui.selected.clear(); renderSort(); }
+});
+$('#btn-accept-all').addEventListener('click', () => {
+  let n = 0;
+  for (const p of poolsOf(state.txns.filter(t => !t.cat))) {
+    const s = suggestFor(p.key, p.txns[0].desc);
+    if (s) n += tagPools([p.key], s.id);
+  }
+  save(); renderAll(); toast(`${n} transactions tagged from suggestions — check them in each category`);
+});
+$('#pool-search').addEventListener('input', renderSort);
+$('#pool-sort').addEventListener('change', renderSort);
+function activateCat(id) {
+  if (ui.selected.size) return handleDrop({ type: 'pools', keys: [...ui.selected] }, id);
+  ui.openCat = ui.openCat === id ? null : id; renderSort();
+}
+function catClick(e) {
+  const add = e.target.closest('[data-add-sub]');
+  if (add) { ui.openCat = add.dataset.addSub; renderSort(); $('#sub-new')?.focus(); return; }
+  const c = e.target.closest('.subcat[data-cat]') || e.target.closest('.cat');
+  if (c) activateCat(c.dataset.cat);
+}
+$('#cats').addEventListener('click', catClick);
+$('#cats').addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.stopPropagation(); catClick(e); } });
+$('#add-cat').addEventListener('submit', e => {
+  e.preventDefault();
+  const name = $('#new-cat').value.trim();
+  if (!name) return;
+  if (tops().some(c => c.name.toLowerCase() === name.toLowerCase())) return toast('That category already exists');
+  state.cats.push({ id: uid(), name, exclude: false });
+  $('#new-cat').value = ''; save(); renderSort();
+});
+$('#add-kw').addEventListener('submit', e => {
+  e.preventDefault();
+  const text = $('#kw-text').value.trim().replace(/\s+/g, ' ');
+  if (text.length < 2) return toast('Type at least two letters');
+  if (state.keywords.some(k => k.text.toLowerCase() === text.toLowerCase())) return toast('There is already a rule for that');
+  const catId = $('#kw-cat').value;
+  const n = addKeyword(text, catId);
+  $('#kw-text').value = '';
+  save(); renderAll();
+  toast(`Rule added — ${n} transaction${n === 1 ? '' : 's'} mentioning “${text}” → ${catLabel(catId)}`);
+});
+$('#kw-list').addEventListener('click', e => {
+  const id = e.target.dataset?.delKw;
+  if (id) { removeKeyword(id); save(); renderAll(); }
+});
+$('#cat-detail').addEventListener('click', e => {
+  const c = catById(ui.openCat);
+  if (!c) return;
+  if (e.target.id === 'cat-close') { ui.openCat = null; return renderSort(); }
+  if (e.target.id === 'cat-delete') {
+    if (c.parent) {
+      // Deleting a sub-category moves its transactions (and rules) up to the main category.
+      const n = state.txns.filter(t => t.cat === c.id).length;
+      if (!confirm(`Delete sub-category “${c.name}”?${n ? ` Its ${n} transactions stay in ${catById(c.parent).name}.` : ''}`)) return;
+      state.txns.forEach(t => { if (t.cat === c.id) t.cat = c.parent; });
+      for (const k in state.rules) if (state.rules[k] === c.id) state.rules[k] = c.parent;
+      state.keywords.forEach(k => { if (k.cat === c.id) k.cat = c.parent; });
+      state.cats = state.cats.filter(x => x.id !== c.id); ui.openCat = c.parent;
+    } else {
+      const ids = new Set([c.id, ...subsOf(c.id).map(x => x.id)]);
+      const n = state.txns.filter(t => ids.has(t.cat)).length;
+      const ns = ids.size - 1;
+      if (!confirm(`Delete “${c.name}”${ns ? ` and its ${ns} sub-categor${ns === 1 ? 'y' : 'ies'}` : ''}?${n ? ` Its ${n} transactions go back to To sort.` : ''}`)) return;
+      state.txns.forEach(t => { if (ids.has(t.cat)) t.cat = null; });
+      for (const k in state.rules) if (ids.has(state.rules[k])) delete state.rules[k];
+      state.keywords = state.keywords.filter(k => !ids.has(k.cat));
+      state.cats = state.cats.filter(x => !ids.has(x.id)); ui.openCat = null;
+    }
+    save(); return renderAll();
+  }
+  if (e.target.dataset.untag) { untagPool(e.target.dataset.untag, e.target.dataset.from); save(); renderAll(); }
+  const del = e.target.closest('[data-del-pool]');
+  if (del) deleteTxns(state.txns.filter(t => t.pool === del.dataset.delPool && t.cat === del.dataset.from), `pool “${titleCase(del.dataset.delPool)}” in ${catLabel(del.dataset.from)}`);
+});
+$('#cat-detail').addEventListener('submit', e => {
+  if (e.target.id !== 'sub-form') return;
+  e.preventDefault();
+  const c = catById(ui.openCat), name = $('#sub-new').value.trim();
+  if (!c || !name) return;
+  if (subsOf(c.id).some(x => x.name.toLowerCase() === name.toLowerCase())) return toast('That sub-category already exists');
+  state.cats.push({ id: uid(), name, exclude: false, parent: c.id });
+  save(); renderSort(); $('#sub-new')?.focus();
+  toast(`Added ${c.name} › ${name} — drag pools onto it`);
+});
+$('#cat-detail').addEventListener('change', e => {
+  const c = catById(ui.openCat);
+  if (!c) return;
+  if (e.target.id === 'cat-exclude') { c.exclude = e.target.checked; save(); renderSort(); }
+  if (e.target.id === 'cat-rename') {
+    const v = e.target.value.trim();
+    if (v) { c.name = v; save(); renderSort(); }
+  }
+});
+
+// Transactions table
+['#tx-search', '#tx-cat', '#tx-period'].forEach(s => $(s).addEventListener(s === '#tx-search' ? 'input' : 'change', renderTxns));
+$('#tx-body').addEventListener('change', e => {
+  if (!e.target.matches('[data-setcat]')) return;
+  const t = state.txns.find(t => t.id === e.target.closest('tr').dataset.id);
+  t.cat = e.target.value || null; save(); $('#badge-untagged').textContent = state.txns.filter(t => !t.cat).length;
+});
+$('#tx-body').addEventListener('click', e => {
+  const tr = e.target.closest('tr'); if (!tr) return;
+  const t = state.txns.find(t => t.id === tr.dataset.id); if (!t) return;
+  if (e.target.matches('[data-flip]')) { t.amount = -t.amount; save(); renderTxns(); }
+  else if (e.target.matches('[data-del]')) { state.txns = state.txns.filter(x => x !== t); save(); renderAll(); }
+  else if (!e.target.closest('select, button')) openTxn(t.id);
+});
+$('#tx-count').addEventListener('click', e => {
+  if (e.target.closest('[data-clear-pool]')) { ui.txPool = null; renderTxns(); }
+  if (e.target.closest('[data-clear-file]')) { ui.txFile = null; renderTxns(); }
+});
+document.addEventListener('keydown', e => {
+  const row = e.target.closest?.('.txn-row');
+  if (row && e.key === 'Enter') openTxn(row.dataset.txn);
+});
+
+// Summary
+$('#sum-period').addEventListener('change', renderSummary);
+window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => ui.view === 'summary' && renderSummary());
+
+// Export / backup / restore / reset
+function download(name, text, type) {
+  const url = URL.createObjectURL(new Blob([text], { type }));
+  const a = Object.assign(document.createElement('a'), { href: url, download: name });
+  document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(url), 1000);
+}
+const csvCell = v => { const s = String(v ?? ''); return /[",\n]/.test(s) || /^[=+\-@]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s; };
+$('#btn-export').addEventListener('click', () => {
+  const rows = [['Date', 'Description', 'Pool', 'Category', 'Sub-category', 'Amount', 'Balance', 'Statement']]
+    .concat([...state.txns].sort((a, b) => a.date.localeCompare(b.date)).map(t =>
+      [t.date, t.desc, titleCase(t.pool), topOf(t.cat)?.name || '', catById(t.cat)?.parent ? catById(t.cat).name : '', t.amount.toFixed(2), t.balance ?? '', t.source]));
+  download('transactions.csv', rows.map(r => r.map(csvCell).join(',')).join('\n'), 'text/csv');
+});
+$('#btn-backup').addEventListener('click', () => download(`statement-sorter-backup-${new Date().toISOString().slice(0, 10)}.json`, JSON.stringify(state, null, 1), 'application/json'));
+$('#btn-restore').addEventListener('click', () => $('#restore-input').click());
+$('#restore-input').addEventListener('change', async e => {
+  const f = e.target.files[0]; e.target.value = '';
+  if (!f) return;
+  try {
+    const s = JSON.parse(await f.text());
+    if (!Array.isArray(s.txns) || !Array.isArray(s.cats)) throw new Error('not a Statement Sorter backup');
+    if (!confirm('Replace everything currently here with this backup?')) return;
+    state = { ...freshState(), ...s }; save(); renderAll(); toast('Backup restored');
+  } catch (err) { alert('Could not restore: ' + err.message); }
+});
+$('#btn-reset').addEventListener('click', () => {
+  if (!confirm('Delete ALL transactions, categories and rules saved in this browser? This cannot be undone (unless you made a Backup).')) return;
+  try { localStorage.removeItem(STORE_KEY); } catch {}
+  state = freshState(); ui.selected.clear(); ui.openCat = null; ui.rawText = {};
+  $('#import-log').innerHTML = ''; renderAll(); toast('All data deleted');
+});
+
+// Re-pool transactions imported before pools were keyed on the recipient's name. Tags are kept.
+if ((state.settings.poolVersion || 1) < 3) {
+  for (const t of state.txns) t.pool = poolFor(t.desc);
+  state.settings.poolVersion = 3;
+  save();
+}
+
+const setHeaderH = () => document.documentElement.style.setProperty('--header-h', $('header').offsetHeight + 'px');
+window.addEventListener('resize', setHeaderH); setHeaderH();
+
+let startView = state.txns.length ? 'sort' : 'import';
+try { startView = sessionStorage.getItem('ss-view') || startView; } catch {}
+setView(startView);
+</script>
+</body>
+</html>

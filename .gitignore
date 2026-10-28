@@ -1,0 +1,6 @@
+# Never commit personal financial data
+*.pdf
+*.csv
+statement-sorter-backup-*.json
+transactions.csv
+.DS_Store
