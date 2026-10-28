@@ -418,16 +418,26 @@ async function api(method, path, body, headers = {}) {
 function load() {
   try { const raw = localStorage.getItem(STORE_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
-// Server saves are sent one at a time; changes made meanwhile go in the next one.
-let saving = null, saveAgain = false;
+// Server saves are sent one at a time; changes made meanwhile go in the next one. Each save carries the
+// database revision this page last saw, so an older tab (or a page whose load failed, revision null)
+// can never overwrite newer data.
+let saving = null, saveAgain = false, revision = null;
 function save() {
   if (!SERVER) {
     try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { toast('Could not save in this browser — use Backup to keep your work.'); }
     return;
   }
+  if (revision === null) return;  // not loaded from the database (or stopped after a conflict)
   if (saving) { saveAgain = true; return; }
-  saving = api('PUT', '/api/state', state)
-    .catch(e => { toast('Could not save to the database: ' + e.message); setEngine(false, e.message); })
+  saving = api('PUT', '/api/state', { revision, state })
+    .then(r => { revision = r.revision; })
+    .catch(e => {
+      if (e.status === 409) {
+        revision = null;
+        setEngine(false, 'stale');
+        alert('Your data was changed in another tab or window, so this one has stopped saving to avoid overwriting it.\n\nReload this page to continue. Your last change here was not saved.');
+      } else { toast('Could not save to the database: ' + e.message); setEngine(false, e.message); }
+    })
     .finally(() => { saving = null; if (saveAgain) { saveAgain = false; save(); } });
 }
 let state = (!SERVER && load()) || freshState();
@@ -1695,10 +1705,12 @@ $('#btn-reset').addEventListener('click', () => {
 function setEngine(ok, problem) {
   const el = $('#engine');
   el.className = 'engine' + (SERVER ? (ok ? ' on' : ' err') : '');
-  el.textContent = !SERVER ? 'Browser mode' : ok ? 'Python engine' : 'Python engine offline';
+  const stale = problem === 'stale';
+  el.textContent = !SERVER ? 'Browser mode' : ok ? 'Python engine' : stale ? 'Not saving: reload' : 'Python engine offline';
   el.title = !SERVER ? 'Opened as a file: statements are read by the browser and saved in this browser. Run server.py for the Python engine and database.'
     : ok ? 'Statements are read by Python and saved to statement-sorter.db on this computer.'
-    : `Can't reach server.py (${problem}). Start it again, then reload.`;
+    : stale ? 'Your data was changed in another tab or window. Reload this page to continue.'
+    : `Can't reach server.py (${problem}). Start it again, then reload. Changes made now are not saved.`;
 }
 
 const setHeaderH = () => document.documentElement.style.setProperty('--header-h', $('header').offsetHeight + 'px');
@@ -1709,6 +1721,7 @@ async function boot() {
     try {
       const r = await api('GET', '/api/state');
       if (r.state) { state = { ...freshState(), ...r.state }; migrateState(); } else ui.emptyServer = true;
+      revision = r.revision;
       setEngine(true);
     } catch (e) { setEngine(false, e.message); }
   } else setEngine(true);

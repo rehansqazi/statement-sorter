@@ -14,6 +14,7 @@ websites can't send without a CORS preflight this server never approves.
 from __future__ import annotations
 
 import argparse
+import errno
 import json
 import mimetypes
 import os
@@ -79,10 +80,16 @@ def db():
 # ---------------------------------------------------------------------------
 # App state <-> database tables
 # ---------------------------------------------------------------------------
-def load_state() -> dict | None:
+class StaleSave(Exception):
+    """The page saving was loaded before the latest save (another tab, or a failed load)."""
+
+
+# The revision is SQLite's built-in user_version counter: +1 on every save, checked in the same transaction.
+def load_state() -> tuple[dict | None, int]:
     with db() as con:
+        rev = con.execute("PRAGMA user_version").fetchone()[0]
         if not con.execute("SELECT 1 FROM settings LIMIT 1").fetchone() and not con.execute("SELECT 1 FROM categories LIMIT 1").fetchone():
-            return None  # nothing saved yet
+            return None, rev  # nothing saved yet
         return {
             "cats": [
                 {"id": r["id"], "name": r["name"], "exclude": bool(r["exclude"]), **({"parent": r["parent_id"]} if r["parent_id"] else {})}
@@ -103,11 +110,14 @@ def load_state() -> dict | None:
                 for r in con.execute("SELECT * FROM name_rules ORDER BY position")
             ],
             "settings": {r["key"]: json.loads(r["value"]) for r in con.execute("SELECT * FROM settings")},
-        }
+        }, rev
 
 
-def save_state(s: dict) -> None:
+def save_state(s: dict, revision: int) -> int:
     with db() as con:  # one transaction: all or nothing
+        current = con.execute("PRAGMA user_version").fetchone()[0]
+        if revision != current:
+            raise StaleSave()
         for table in ("categories", "statements", "transactions", "pool_rules", "name_rules", "settings"):
             con.execute(f"DELETE FROM {table}")
         con.executemany(
@@ -129,6 +139,8 @@ def save_state(s: dict) -> None:
             [(k["id"], k["text"], k["cat"], i) for i, k in enumerate(s.get("keywords", []))],
         )
         con.executemany("INSERT INTO settings VALUES (?,?)", [(k, json.dumps(v)) for k, v in (s.get("settings") or {}).items()])
+        con.execute(f"PRAGMA user_version = {current + 1}")
+        return current + 1
 
 
 # ---------------------------------------------------------------------------
@@ -185,7 +197,8 @@ class Handler(BaseHTTPRequestHandler):
         if path == "/api/health":
             return self._json({"ok": True, "db": DB_PATH.name})
         if path == "/api/state":
-            return self._json({"state": load_state()})
+            state, rev = load_state()
+            return self._json({"state": state, "revision": rev})
         rel = STATIC.get(path)
         if not rel:
             return self._send(HTTPStatus.NOT_FOUND, b"Not found", "text/plain")
@@ -202,13 +215,18 @@ class Handler(BaseHTTPRequestHandler):
         if body is None:
             return
         try:
-            state = json.loads(body)
+            req = json.loads(body)
+            state = req.get("state") if isinstance(req, dict) else None
             if not isinstance(state, dict) or not isinstance(state.get("txns"), list) or not isinstance(state.get("cats"), list):
                 raise ValueError("not a Statement Sorter state")
-            save_state(state)
+            if not isinstance(req.get("revision"), int):
+                raise ValueError("missing revision")
+            rev = save_state(state, req["revision"])
+        except StaleSave:
+            return self._json({"error": "stale"}, HTTPStatus.CONFLICT)
         except (ValueError, KeyError, TypeError, sqlite3.Error) as e:
             return self._json({"error": f"Could not save: {e}"}, HTTPStatus.BAD_REQUEST)
-        self._json({"ok": True})
+        self._json({"ok": True, "revision": rev})
 
     def do_POST(self):
         url = urlparse(self.path)
@@ -236,8 +254,16 @@ def main() -> None:
     ap.add_argument("--no-browser", action="store_true", help="don't open the browser")
     args = ap.parse_args()
     connect().close()
-    httpd = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
     url = f"http://127.0.0.1:{args.port}/"
+    try:
+        httpd = ThreadingHTTPServer(("127.0.0.1", args.port), Handler)
+    except OSError as e:
+        if e.errno != errno.EADDRINUSE:
+            raise
+        print(f"Port {args.port} is already in use, probably by Statement Sorter itself. Opening {url}")
+        if not args.no_browser:
+            webbrowser.open(url)
+        return
     print(f"Statement Sorter is running at {url}\nData: {DB_PATH}\nPress Ctrl+C to stop.", flush=True)
     if not args.no_browser:
         threading.Timer(0.5, webbrowser.open, [url]).start()
