@@ -2,15 +2,36 @@
 
 Sort your bank statement transactions into categories by dragging and dropping, then see where your money went.
 
-Everything runs in your browser from a single HTML file. **Your statements never leave your computer**: the page is blocked from making any network requests, and the PDF reader and chart library are bundled in `vendor/`, so it works fully offline.
+**Your statements never leave your computer.** It works fully offline, in one of two ways:
+
+| | Python engine (recommended) | Browser mode |
+|---|---|---|
+| How to start | Double-click `start.command` (or run `server.py`) | Double-click `index.html` |
+| Reads PDFs with | Python + [pdfplumber](https://github.com/jsvine/pdfplumber) | [pdf.js](https://mozilla.github.io/pdf.js/) in the browser |
+| Saves your data in | `statement-sorter.db` (SQLite) next to the app | the browser's local storage |
+| Needs | Python 3 | nothing |
 
 ## Use it
 
-1. Download or clone this repository.
-2. Open `index.html` in Chrome (or any modern browser).
-3. Drop in one or more PDF bank statements.
+**Python engine (macOS):**
 
-No install, no server, no account.
+1. Download or clone this repository.
+2. Double-click `start.command`. The first time, it creates a private Python environment (`.venv`) and installs pdfplumber.
+3. Your browser opens at http://127.0.0.1:8765. Drop in your PDF statements.
+
+Keep the Terminal window open while you use the app; close it (or press Ctrl+C) to stop.
+
+On other systems, or by hand:
+
+```bash
+python3 -m venv .venv
+.venv/bin/pip install -r requirements.txt
+.venv/bin/python server.py
+```
+
+**Browser mode:** just open `index.html`. No install, no server.
+
+**Moving your data between the two:** they store data separately. In the one you're leaving, click **Backup**; in the other, click **Restore**.
 
 ## What it does
 
@@ -23,8 +44,10 @@ No install, no server, no account.
 
 ## Privacy
 
-- PDFs are parsed locally with [pdf.js](https://mozilla.github.io/pdf.js/). A Content-Security-Policy blocks every outgoing connection.
-- Your sorted data is saved in your browser's local storage on your computer (unencrypted). Use **Backup** to keep a copy and **Reset all** to wipe it.
+- The page can only talk to the server it came from (a Content-Security-Policy blocks every other connection). In browser mode that means nothing at all.
+- The Python server listens on `127.0.0.1` only, so other computers can't reach it. It refuses requests addressed to any other host name (DNS rebinding) and API calls from other websites.
+- PDFs sent to the server are read in memory and never written to disk.
+- Your data is stored unencrypted, in `statement-sorter.db` (Python engine) or the browser's local storage (browser mode). Use **Backup** to keep a copy and **Reset all** to wipe it.
 
 ## Limitations
 
@@ -32,9 +55,19 @@ No install, no server, no account.
 - European number formats such as `1.234,56` aren't supported yet.
 - Amounts are not converted between currencies.
 
+## Development
+
+The statement parser exists twice and the two must agree: `statement_parser.py` (Python engine) and the parser inside `index.html` (browser mode). Regression tests run the Python one over made-up statements in `tests/fixtures`:
+
+```bash
+.venv/bin/python -m unittest discover tests
+.venv/bin/python tests/test_parser.py --update   # accept new output as the expected results
+```
+
 ## Third-party code
 
 - [pdf.js](https://github.com/mozilla/pdf.js) 3.11.174, © Mozilla Foundation, Apache License 2.0
 - [Chart.js](https://github.com/chartjs/Chart.js) 4.4.1, © Chart.js Contributors, MIT License
+- [pdfplumber](https://github.com/jsvine/pdfplumber) (installed by `start.command`, not bundled), MIT License
 
 See [`vendor/LICENSES.md`](vendor/LICENSES.md).

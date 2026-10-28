@@ -1,6 +1,12 @@
 # Never commit personal financial data
 *.pdf
+!tests/fixtures/*.pdf
 *.csv
 statement-sorter-backup-*.json
 transactions.csv
 .DS_Store
+# Local Python environment and your database
+.venv/
+__pycache__/
+*.db
+*.db-journal

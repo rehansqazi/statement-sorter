@@ -1,0 +1,239 @@
+{
+ "fmt": "dmy",
+ "txns": [
+  {
+   "date": "2025-09-01",
+   "desc": "DD OCTOPUS ENERGY",
+   "amount": -37.35,
+   "balance": 1483.05
+  },
+  {
+   "date": "2025-09-01",
+   "desc": "CARD PAYMENT TO TESCO STORES 3021 LONDON",
+   "amount": -9.3,
+   "balance": 1473.75
+  },
+  {
+   "date": "2025-09-03",
+   "desc": "SO RENT FLAT 4B",
+   "amount": -950.0,
+   "balance": 523.75
+  },
+  {
+   "date": "2025-09-05",
+   "desc": "CARD PAYMENT TO TESCO STORES 3021 LONDON",
+   "amount": -10.48,
+   "balance": 513.27
+  },
+  {
+   "date": "2025-09-07",
+   "desc": "CARD PAYMENT TO PRET A MANGER 112",
+   "amount": -23.94,
+   "balance": 489.33
+  },
+  {
+   "date": "2025-09-07",
+   "desc": "FASTER PAYMENT FROM ACME LTD SALARY",
+   "amount": 2650.0,
+   "balance": 3139.33
+  },
+  {
+   "date": "2025-09-09",
+   "desc": "CARD PAYMENT TO UBER *TRIP HELP.UBER.COM",
+   "amount": -57.86,
+   "balance": 3081.47
+  },
+  {
+   "date": "2025-09-11",
+   "desc": "CASH WITHDRAWAL ATM 0042",
+   "amount": -53.94,
+   "balance": 3027.53
+  },
+  {
+   "date": "2025-09-13",
+   "desc": "CARD PAYMENT TO UBER *TRIP HELP.UBER.COM",
+   "amount": -7.05,
+   "balance": 3020.48
+  },
+  {
+   "date": "2025-09-15",
+   "desc": "CARD PAYMENT TO AMAZON.CO.UK*RT55K1 ON 12 ORDER REF",
+   "amount": -39.47,
+   "balance": 2981.01
+  },
+  {
+   "date": "2025-09-17",
+   "desc": "CASH WITHDRAWAL ATM 0042",
+   "amount": -29.84,
+   "balance": 2951.17
+  },
+  {
+   "date": "2025-09-19",
+   "desc": "CARD PAYMENT TO PRET A MANGER 112",
+   "amount": -53.6,
+   "balance": 2897.57
+  },
+  {
+   "date": "2025-09-21",
+   "desc": "SO RENT FLAT 4B",
+   "amount": -950.0,
+   "balance": 1947.57
+  },
+  {
+   "date": "2025-09-23",
+   "desc": "CASH WITHDRAWAL ATM 0042",
+   "amount": -8.19,
+   "balance": 1939.38
+  },
+  {
+   "date": "2025-09-25",
+   "desc": "CARD PAYMENT TO SAINSBURYS S/MKTS",
+   "amount": -62.19,
+   "balance": 1877.19
+  },
+  {
+   "date": "2025-09-27",
+   "desc": "CARD PAYMENT TO SQ *BEAN THERE COFFEE",
+   "amount": -30.33,
+   "balance": 1846.86
+  },
+  {
+   "date": "2025-09-27",
+   "desc": "CASH WITHDRAWAL ATM 0042",
+   "amount": -83.34,
+   "balance": 1763.52
+  },
+  {
+   "date": "2025-10-01",
+   "desc": "CARD PAYMENT TO AMAZON.CO.UK*RT55K1 ON 12 ORDER REF",
+   "amount": -24.61,
+   "balance": 1738.91
+  },
+  {
+   "date": "2025-10-01",
+   "desc": "DD OCTOPUS ENERGY",
+   "amount": -63.81,
+   "balance": 1675.1
+  },
+  {
+   "date": "2025-10-03",
+   "desc": "CARD PAYMENT TO PRET A MANGER 112",
+   "amount": -52.97,
+   "balance": 1622.13
+  },
+  {
+   "date": "2025-10-05",
+   "desc": "SO RENT FLAT 4B",
+   "amount": -950.0,
+   "balance": 672.13
+  },
+  {
+   "date": "2025-10-05",
+   "desc": "CARD PAYMENT TO AMAZON.CO.UK*RT55K1 ON 12 ORDER REF",
+   "amount": -55.98,
+   "balance": 616.15
+  },
+  {
+   "date": "2025-10-07",
+   "desc": "CARD PAYMENT TO PRET A MANGER 112",
+   "amount": -47.54,
+   "balance": 568.61
+  },
+  {
+   "date": "2025-10-09",
+   "desc": "CARD PAYMENT TO SQ *BEAN THERE COFFEE",
+   "amount": -32.76,
+   "balance": 535.85
+  },
+  {
+   "date": "2025-10-11",
+   "desc": "CARD PAYMENT TO NETFLIX.COM",
+   "amount": -6.41,
+   "balance": 529.44
+  },
+  {
+   "date": "2025-10-11",
+   "desc": "CARD PAYMENT TO TFL TRAVEL CH",
+   "amount": -9.75,
+   "balance": 519.69
+  },
+  {
+   "date": "2025-10-13",
+   "desc": "SO RENT FLAT 4B",
+   "amount": -950.0,
+   "balance": -430.31
+  },
+  {
+   "date": "2025-10-13",
+   "desc": "CASH WITHDRAWAL ATM 0042",
+   "amount": -46.21,
+   "balance": -476.52
+  },
+  {
+   "date": "2025-10-15",
+   "desc": "CARD PAYMENT TO PRET A MANGER 112",
+   "amount": -76.08,
+   "balance": -552.6
+  },
+  {
+   "date": "2025-10-15",
+   "desc": "CARD PAYMENT TO AMAZON.CO.UK*RT55K1 ON 12 ORDER REF",
+   "amount": -44.25,
+   "balance": -596.85
+  },
+  {
+   "date": "2025-10-17",
+   "desc": "CARD PAYMENT TO TESCO STORES 3021 LONDON",
+   "amount": -66.61,
+   "balance": -663.46
+  },
+  {
+   "date": "2025-10-19",
+   "desc": "CARD PAYMENT TO TFL TRAVEL CH",
+   "amount": -53.28,
+   "balance": -716.74
+  },
+  {
+   "date": "2025-10-19",
+   "desc": "CARD PAYMENT TO TFL TRAVEL CH",
+   "amount": -74.51,
+   "balance": -791.25
+  },
+  {
+   "date": "2025-10-21",
+   "desc": "TRANSFER TO SAVINGS 40-11-22",
+   "amount": -36.56,
+   "balance": -827.81
+  },
+  {
+   "date": "2025-10-21",
+   "desc": "CARD PAYMENT TO TFL TRAVEL CH",
+   "amount": -33.19,
+   "balance": -861.0
+  },
+  {
+   "date": "2025-10-23",
+   "desc": "SO RENT FLAT 4B",
+   "amount": -950.0,
+   "balance": -1811.0
+  },
+  {
+   "date": "2025-10-23",
+   "desc": "CARD PAYMENT TO PRET A MANGER 112",
+   "amount": -45.95,
+   "balance": -1856.95
+  },
+  {
+   "date": "2025-10-25",
+   "desc": "CARD PAYMENT TO SQ *BEAN THERE COFFEE",
+   "amount": -28.01,
+   "balance": -1884.96
+  },
+  {
+   "date": "2025-10-27",
+   "desc": "CARD PAYMENT TO NETFLIX.COM",
+   "amount": -37.01,
+   "balance": -1921.97
+  }
+ ]
+}

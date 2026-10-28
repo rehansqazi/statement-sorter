@@ -1,0 +1,41 @@
+{
+ "fmt": "dmy",
+ "txns": [
+  {
+   "date": "2025-11-03",
+   "desc": "FASTER PAYMENT TO AHMED KHAN REF CHICKEN",
+   "amount": -45.0,
+   "balance": 1955.0
+  },
+  {
+   "date": "2025-11-08",
+   "desc": "MOBILE TRANSFER AHMED K",
+   "amount": -38.5,
+   "balance": 1916.5
+  },
+  {
+   "date": "2025-11-12",
+   "desc": "TFR TO MR AHMED",
+   "amount": -52.0,
+   "balance": 1864.5
+  },
+  {
+   "date": "2025-11-15",
+   "desc": "FASTER PAYMENT TO AHMEDABAD TRADERS",
+   "amount": -20.0,
+   "balance": 1844.5
+  },
+  {
+   "date": "2025-11-18",
+   "desc": "TRANSFER TO SAVINGS",
+   "amount": -200.0,
+   "balance": 1644.5
+  },
+  {
+   "date": "2025-11-20",
+   "desc": "REMITLY* 88123",
+   "amount": -150.0,
+   "balance": 1494.5
+  }
+ ]
+}

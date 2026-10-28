@@ -1,0 +1,71 @@
+{
+ "fmt": "dmy",
+ "txns": [
+  {
+   "date": "2025-07-01",
+   "desc": "Money Transferred to ABC XYZ 0000- ****000001 STAN (000001)",
+   "amount": -1000.0,
+   "balance": 102259.1
+  },
+  {
+   "date": "2025-07-01",
+   "desc": "Money Transferred to PQR STU VWX Bankname XXXX0000002 STAN(000002)",
+   "amount": -19000.0,
+   "balance": 83259.1
+  },
+  {
+   "date": "2025-07-01",
+   "desc": "Raast P2P Fund transfer from DEF GHI JKL RAAST PYxxxx0003 BANK000000000000000000003",
+   "amount": 1000.0,
+   "balance": 84259.1
+  },
+  {
+   "date": "2025-07-03",
+   "desc": "Online Cash Deposit 0000004",
+   "amount": 400000.0,
+   "balance": 484259.1
+  },
+  {
+   "date": "2025-07-04",
+   "desc": "Money Transferred to MNO PQR (ASAAN AC) 0000- ****000005 STAN (000005)",
+   "amount": -3500.0,
+   "balance": 480759.1
+  },
+  {
+   "date": "2025-07-06",
+   "desc": "Money Received from Bankname XXXX0000000006 STAN(000006)",
+   "amount": 10000.0,
+   "balance": 490759.1
+  },
+  {
+   "date": "2025-07-09",
+   "desc": "Charges Taxes Plus FED STAN(000007)",
+   "amount": -11.5,
+   "balance": 490747.6
+  },
+  {
+   "date": "2025-08-12",
+   "desc": "Money Transferred to STU VWX JazzCash XXXX0000008 STAN(000008)",
+   "amount": -5000.0,
+   "balance": 485747.6
+  },
+  {
+   "date": "2025-08-13",
+   "desc": "Raast P2P Fund transfer to STU VWX PK00ABCDxxxx0009 AMEZNPKKA000000000000000000000009",
+   "amount": -1500.0,
+   "balance": 484247.6
+  },
+  {
+   "date": "2025-08-15",
+   "desc": "ATM Cash Withdrawal SAMPLEBRANCH- CITY STAN (000010)",
+   "amount": -20000.0,
+   "balance": 464247.6
+  },
+  {
+   "date": "2025-08-20",
+   "desc": "Money Transferred to ABC XYZ 0000- ****000001 STAN (000011)",
+   "amount": -3000.0,
+   "balance": 461247.6
+  }
+ ]
+}

@@ -1,0 +1,125 @@
+{
+ "fmt": "mdy",
+ "txns": [
+  {
+   "date": "2025-11-01",
+   "desc": "CHECKCARD SHELL OIL 5741",
+   "amount": -69.95,
+   "balance": null
+  },
+  {
+   "date": "2025-11-03",
+   "desc": "PAYROLL DIRECT DEP GLOBEX CORP",
+   "amount": 3200.0,
+   "balance": null
+  },
+  {
+   "date": "2025-11-04",
+   "desc": "CHECKCARD 0912 STARBUCKS STORE 220",
+   "amount": -119.46,
+   "balance": null
+  },
+  {
+   "date": "2025-11-06",
+   "desc": "ACH DEBIT VERIZON WIRELESS",
+   "amount": -24.58,
+   "balance": null
+  },
+  {
+   "date": "2025-11-07",
+   "desc": "ACH DEBIT VERIZON WIRELESS",
+   "amount": -63.93,
+   "balance": null
+  },
+  {
+   "date": "2025-11-09",
+   "desc": "ZELLE PAYMENT TO JOHN",
+   "amount": -42.34,
+   "balance": null
+  },
+  {
+   "date": "2025-11-15",
+   "desc": "ZELLE PAYMENT TO JOHN",
+   "amount": -126.34,
+   "balance": null
+  },
+  {
+   "date": "2025-11-18",
+   "desc": "POS PURCHASE WHOLE FOODS #10233 AUSTIN TX",
+   "amount": -17.8,
+   "balance": null
+  },
+  {
+   "date": "2025-11-20",
+   "desc": "SPOTIFY USA",
+   "amount": -55.17,
+   "balance": null
+  },
+  {
+   "date": "2025-12-03",
+   "desc": "SPOTIFY USA",
+   "amount": -26.63,
+   "balance": null
+  },
+  {
+   "date": "2025-12-05",
+   "desc": "ZELLE PAYMENT TO JOHN",
+   "amount": -97.91,
+   "balance": null
+  },
+  {
+   "date": "2025-12-08",
+   "desc": "PAYROLL DIRECT DEP GLOBEX CORP",
+   "amount": 3200.0,
+   "balance": null
+  },
+  {
+   "date": "2025-12-12",
+   "desc": "CHECKCARD SHELL OIL 5741",
+   "amount": -85.91,
+   "balance": null
+  },
+  {
+   "date": "2025-12-13",
+   "desc": "SPOTIFY USA",
+   "amount": -58.26,
+   "balance": null
+  },
+  {
+   "date": "2025-12-16",
+   "desc": "CHECKCARD 0912 STARBUCKS STORE 220",
+   "amount": -46.41,
+   "balance": null
+  },
+  {
+   "date": "2025-12-18",
+   "desc": "ACH DEBIT VERIZON WIRELESS",
+   "amount": -54.22,
+   "balance": null
+  },
+  {
+   "date": "2025-12-20",
+   "desc": "POS PURCHASE WHOLE FOODS #10233 AUSTIN TX",
+   "amount": -11.15,
+   "balance": null
+  },
+  {
+   "date": "2025-12-21",
+   "desc": "POS PURCHASE WHOLE FOODS #10233 AUSTIN TX",
+   "amount": -58.46,
+   "balance": null
+  },
+  {
+   "date": "2025-12-23",
+   "desc": "CHECKCARD 0912 STARBUCKS STORE 220",
+   "amount": -60.48,
+   "balance": null
+  },
+  {
+   "date": "2025-12-29",
+   "desc": "CHECKCARD 0912 STARBUCKS STORE 220",
+   "amount": -22.62,
+   "balance": null
+  }
+ ]
+}

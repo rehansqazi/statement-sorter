@@ -1,0 +1,53 @@
+{
+ "fmt": "dmy",
+ "txns": [
+  {
+   "date": "2025-12-15",
+   "desc": "PAYPAL *NETFLIX",
+   "amount": -29.66,
+   "balance": null
+  },
+  {
+   "date": "2025-12-18",
+   "desc": "DELIVEROO",
+   "amount": -164.95,
+   "balance": null
+  },
+  {
+   "date": "2025-12-22",
+   "desc": "PAYMENT RECEIVED - THANK YOU",
+   "amount": 183.72,
+   "balance": null
+  },
+  {
+   "date": "2025-12-28",
+   "desc": "PAYPAL *NETFLIX",
+   "amount": -117.46,
+   "balance": null
+  },
+  {
+   "date": "2026-01-02",
+   "desc": "PAYPAL *NETFLIX",
+   "amount": -209.61,
+   "balance": null
+  },
+  {
+   "date": "2026-01-05",
+   "desc": "PAYMENT RECEIVED - THANK YOU",
+   "amount": 84.69,
+   "balance": null
+  },
+  {
+   "date": "2026-01-09",
+   "desc": "BOOTS 1123",
+   "amount": -123.15,
+   "balance": null
+  },
+  {
+   "date": "2026-01-12",
+   "desc": "AMAZON MARKETPLACE",
+   "amount": -168.73,
+   "balance": null
+  }
+ ]
+}

@@ -3,8 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<!-- Offline lock: no network requests of any kind are allowed from this page. -->
-<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file: 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'none'; worker-src 'self' file: blob:; form-action 'none'; base-uri 'none'">
+<!-- Offline lock: the page may only talk to the server it came from (the local Python server, if used). -->
+<meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self' file: 'unsafe-inline'; style-src 'unsafe-inline'; img-src data: blob:; font-src data:; connect-src 'self'; worker-src 'self' file: blob:; form-action 'none'; base-uri 'none'">
 <title>Statement Sorter</title>
 <style>
 :root {
@@ -64,6 +64,9 @@ header {
 }
 .bar { max-width: 1200px; margin: 0 auto; padding: 10px 16px; display: flex; gap: 12px; align-items: center; flex-wrap: wrap; }
 .brand { font-weight: 650; font-size: 16px; margin-right: 8px; }
+.engine { font-size: 12px; padding: 2px 8px; border-radius: 10px; background: var(--surface-2); color: var(--text-2); white-space: nowrap; }
+.engine.on::before { content: ""; display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--pos); margin-right: 6px; vertical-align: 1px; }
+.engine.err { color: var(--danger); }
 nav { display: flex; gap: 4px; flex-wrap: wrap; }
 nav button { border-color: transparent; background: transparent; color: var(--text-2); }
 nav button[aria-selected="true"] { background: var(--surface-2); color: var(--text); font-weight: 600; }
@@ -230,6 +233,7 @@ td .src { font-size: 11px; color: var(--muted); }
 <header>
   <div class="bar">
     <div class="brand">Statement Sorter</div>
+    <span class="engine" id="engine"></span>
     <nav role="tablist">
       <button data-view="import" role="tab">1. Import</button>
       <button data-view="sort" role="tab">2. Sort <span class="badge" id="badge-untagged">0</span></button>
@@ -398,23 +402,48 @@ function freshState() {
     settings: { dateFmt: 'auto', currency: '', addedRemittances: true, poolVersion: 3 },
   };
 }
+// Served by server.py (Python engine + SQLite) or opened directly as a file (browser-only mode).
+const SERVER = location.protocol === 'http:' && ['127.0.0.1', 'localhost', '[::1]'].includes(location.hostname);
+async function api(method, path, body, headers = {}) {
+  const isFile = body instanceof Blob;
+  const r = await fetch(path, {
+    method,
+    headers: { 'X-Statement-Sorter': '1', ...(body !== undefined && !isFile ? { 'Content-Type': 'application/json' } : {}), ...headers },
+    body: body === undefined ? undefined : isFile ? body : JSON.stringify(body),
+  });
+  const data = await r.json().catch(() => ({}));
+  if (!r.ok) throw Object.assign(new Error(data.error || r.statusText), { status: r.status, data });
+  return data;
+}
 function load() {
   try { const raw = localStorage.getItem(STORE_KEY); return raw ? JSON.parse(raw) : null; } catch { return null; }
 }
+// Server saves are sent one at a time; changes made meanwhile go in the next one.
+let saving = null, saveAgain = false;
 function save() {
-  try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { toast('Could not save in this browser — use Backup to keep your work.'); }
-}
-let state = load() || freshState();
-// Saved data from before Remittances was a default category gets it once (it can be deleted afterwards).
-if (!state.settings.addedRemittances) {
-  if (!state.cats.some(c => c.name.toLowerCase() === 'remittances')) {
-    const at = state.cats.findIndex(c => c.name === 'Transfers');
-    state.cats.splice(at < 0 ? state.cats.length : at, 0, { id: uid(), name: 'Remittances', exclude: false });
+  if (!SERVER) {
+    try { localStorage.setItem(STORE_KEY, JSON.stringify(state)); } catch { toast('Could not save in this browser — use Backup to keep your work.'); }
+    return;
   }
-  state.settings.addedRemittances = true;
+  if (saving) { saveAgain = true; return; }
+  saving = api('PUT', '/api/state', state)
+    .catch(e => { toast('Could not save to the database: ' + e.message); setEngine(false, e.message); })
+    .finally(() => { saving = null; if (saveAgain) { saveAgain = false; save(); } });
 }
-state.keywords ||= [];
-state.files ||= [];
+let state = (!SERVER && load()) || freshState();
+function migrateState() {
+  // Saved data from before Remittances was a default category gets it once (it can be deleted afterwards).
+  if (!state.settings.addedRemittances) {
+    if (!state.cats.some(c => c.name.toLowerCase() === 'remittances')) {
+      const at = state.cats.findIndex(c => c.name === 'Transfers');
+      state.cats.splice(at < 0 ? state.cats.length : at, 0, { id: uid(), name: 'Remittances', exclude: false });
+    }
+    state.settings.addedRemittances = true;
+  }
+  state.keywords ||= [];
+  state.files ||= [];
+}
+migrateState();
 
 const ui = { view: 'import', selected: new Set(), expanded: new Set(), openCat: null, rawText: {} };
 
@@ -699,7 +728,6 @@ function extractTransactions(pages, fmtSetting) {
     }
     if (sign === null) sign = INCOME_RE.test(desc) ? 1 : -1;
     if (balV !== null) prevBal = balV;
-    // Where the description column starts, so wrapped lines below it can be recognised by position.
     const t = { date, desc: desc || '(no description)', amount: Math.round(sign * a.value * 100) / 100, balance: balV, _y: line.y, _h: line.h };
     out.push(t);
     return t;
@@ -838,6 +866,31 @@ function suggestFor(key, sample) {
 // ---------------------------------------------------------------------------
 // Import
 // ---------------------------------------------------------------------------
+async function parseStatement(file) {
+  if (!SERVER) {
+    const pages = await readPdf(file);
+    const { txns, fmt } = extractTransactions(pages, state.settings.dateFmt);
+    return {
+      txns, fmt, pages: pages.length,
+      textLength: pages.flat().reduce((n, l) => n + l.text.length, 0),
+      text: pages.map((p, i) => `--- page ${i + 1} ---\n` + p.map(l => l.text).join('\n')).join('\n'),
+      layout: pages.map((p, i) => `--- page ${i + 1} ---\n` + p.map(l =>
+        `y=${l.y.toFixed(1)} h=${l.h.toFixed(1)}  ` + l.segs.map(s => `[x=${s.x.toFixed(1)}] ${s.str}`).join('  ')).join('\n')).join('\n'),
+    };
+  }
+  let password = null;
+  for (;;) {
+    try {
+      return await api('POST', `/api/parse?fmt=${encodeURIComponent(state.settings.dateFmt)}`, file,
+        password !== null ? { 'X-PDF-Password': encodeURIComponent(password) } : {});
+    } catch (e) {
+      if (e.status !== 401) throw e;
+      password = prompt(e.data.wrong ? `Wrong password for ${file.name}. Try again:` : `${file.name} is password-protected. Enter its password:`);
+      if (password === null) throw new Error('a password is needed to open it');
+    }
+  }
+}
+
 async function importFiles(files) {
   const log = $('#import-log');
   let addedTotal = 0;
@@ -848,9 +901,8 @@ async function importFiles(files) {
     item.innerHTML = `<strong>${esc(file.name)}</strong> <span class="muted">reading…</span>`;
     log.prepend(item);
     try {
-      const pages = await readPdf(file);
-      const textLen = pages.flat().reduce((n, l) => n + l.text.length, 0);
-      const { txns, fmt } = extractTransactions(pages, state.settings.dateFmt);
+      const parsed = await parseStatement(file);
+      const { txns, fmt } = parsed, textLen = parsed.textLength;
       const fileId = uid();
       const existing = new Map(state.txns.filter(t => t.balance !== null).map(t => [`${t.date}|${t.amount}|${t.balance}`, t]));
       let added = 0, dupes = 0, improved = 0;
@@ -873,16 +925,15 @@ async function importFiles(files) {
       }
       state.files.push({ id: fileId, name: file.name, added, at: new Date().toISOString() });
       addedTotal += added;
-      ui.rawText[fileId] = pages.map((p, i) => `--- page ${i + 1} ---\n` + p.map(l => l.text).join('\n')).join('\n');
+      ui.rawText[fileId] = parsed.text;
       ui.layout = ui.layout || {};
-      ui.layout[fileId] = pages.map((p, i) => `--- page ${i + 1} ---\n` + p.map(l =>
-        `y=${l.y.toFixed(1)} h=${l.h.toFixed(1)}  ` + l.segs.map(s => `[x=${s.x.toFixed(1)}] ${s.str}`).join('  ')).join('\n')).join('\n');
+      ui.layout[fileId] = parsed.layout;
       const dates = txns.map(t => t.date).sort();
       const autoTagged = state.txns.filter(t => t.fileId === fileId && t.cat).length;
       let warn = '';
       if (textLen < 50) warn = 'No text found — this looks like a scanned image PDF, which can’t be read without OCR.';
       else if (!txns.length) warn = 'No transactions recognised. Open “Show extracted text” to see what the parser saw.';
-      item.innerHTML = `<strong>${esc(file.name)}</strong> — ${pages.length} page${pages.length > 1 ? 's' : ''},
+      item.innerHTML = `<strong>${esc(file.name)}</strong> — ${parsed.pages} page${parsed.pages > 1 ? 's' : ''},
         <strong>${added}</strong> transactions added${dupes ? `, ${dupes} duplicates skipped` : ''}${improved ? ` (${improved} of them updated with their full description)` : ''}${autoTagged ? `, ${autoTagged} auto-tagged from your earlier choices` : ''}
         ${dates.length ? `<span class="muted"> · ${fmtDate(dates[0])} – ${fmtDate(dates[dates.length - 1])} · dates read as ${fmt === 'mdy' ? 'MM/DD' : 'DD/MM'}</span>` : ''}
         ${warn ? `<div class="warn">${esc(warn)}</div>` : ''}
@@ -892,7 +943,7 @@ async function importFiles(files) {
       if (!state.settings.currency) {
         // The statement's currency is the one printed most often (a single foreign purchase mustn't win).
         const counts = {};
-        for (const m of pages.flat().map(l => l.text).join(' ').matchAll(/[£$€₹]|PKR|Rs\.?(?=\s?\d)/g)) {
+        for (const m of parsed.text.matchAll(/[£$€₹]|PKR|Rs\.?(?=\s?\d)/g)) {
           const k = m[0] === 'PKR' ? 'PKR ' : m[0].startsWith('Rs') ? 'Rs ' : m[0];
           counts[k] = (counts[k] || 0) + 1;
         }
@@ -1345,7 +1396,10 @@ function importedStatements() {
 }
 function renderImports() {
   const list = importedStatements();
-  $('#imports').innerHTML = list.length ? `<h3>Imported statements (${list.length})</h3>
+  const moving = SERVER && ui.emptyServer && !state.txns.length
+    ? `<div class="item" style="margin-bottom:12px"><strong>New database.</strong> Moving your data over from the double-click version?
+        Open <code>index.html</code> directly, click <strong>Backup</strong>, then come back here and click <strong>Restore</strong>.</div>` : '';
+  $('#imports').innerHTML = moving + (list.length ? `<h3>Imported statements (${list.length})</h3>
     <div class="table-wrap"><table>
       <thead><tr><th>Statement</th><th>Period</th><th class="r">Transactions</th><th class="r">Money in</th><th class="r">Money out</th></tr></thead>
       <tbody>${list.map(f => `<tr>
@@ -1356,7 +1410,7 @@ function renderImports() {
         <td class="r num">${f.txns.length}<div class="meta">${f.tagged} sorted</div></td>
         <td class="r num pos">${f.moneyIn ? money(f.moneyIn) : ''}</td>
         <td class="r num">${f.moneyOut ? money(f.moneyOut) : ''}</td>
-      </tr>`).join('')}</tbody></table></div>` : '';
+      </tr>`).join('')}</tbody></table></div>` : '');
 }
 function removeStatement(id) {
   const f = importedStatements().find(f => f.id === id);
@@ -1632,25 +1686,46 @@ $('#restore-input').addEventListener('change', async e => {
   } catch (err) { alert('Could not restore: ' + err.message); }
 });
 $('#btn-reset').addEventListener('click', () => {
-  if (!confirm('Delete ALL transactions, categories and rules saved in this browser? This cannot be undone (unless you made a Backup).')) return;
+  if (!confirm(`Delete ALL transactions, categories and rules saved ${SERVER ? 'in the database' : 'in this browser'}? This cannot be undone (unless you made a Backup).`)) return;
   try { localStorage.removeItem(STORE_KEY); } catch {}
   state = freshState(); ui.selected.clear(); ui.openCat = null; ui.rawText = {};
-  $('#import-log').innerHTML = ''; renderAll(); toast('All data deleted');
+  save(); $('#import-log').innerHTML = ''; renderAll(); toast('All data deleted');
 });
 
-// Re-pool transactions imported before pools were keyed on the recipient's name. Tags are kept.
-if ((state.settings.poolVersion || 1) < 3) {
-  for (const t of state.txns) t.pool = poolFor(t.desc);
-  state.settings.poolVersion = 3;
-  save();
+function setEngine(ok, problem) {
+  const el = $('#engine');
+  el.className = 'engine' + (SERVER ? (ok ? ' on' : ' err') : '');
+  el.textContent = !SERVER ? 'Browser mode' : ok ? 'Python engine' : 'Python engine offline';
+  el.title = !SERVER ? 'Opened as a file: statements are read by the browser and saved in this browser. Run server.py for the Python engine and database.'
+    : ok ? 'Statements are read by Python and saved to statement-sorter.db on this computer.'
+    : `Can't reach server.py (${problem}). Start it again, then reload.`;
 }
 
 const setHeaderH = () => document.documentElement.style.setProperty('--header-h', $('header').offsetHeight + 'px');
-window.addEventListener('resize', setHeaderH); setHeaderH();
+window.addEventListener('resize', setHeaderH);
 
-let startView = state.txns.length ? 'sort' : 'import';
-try { startView = sessionStorage.getItem('ss-view') || startView; } catch {}
-setView(startView);
+async function boot() {
+  if (SERVER) {
+    try {
+      const r = await api('GET', '/api/state');
+      if (r.state) { state = { ...freshState(), ...r.state }; migrateState(); } else ui.emptyServer = true;
+      setEngine(true);
+    } catch (e) { setEngine(false, e.message); }
+  } else setEngine(true);
+  // Re-pool transactions imported before pools were keyed on the recipient's name. Tags are kept.
+  if ((state.settings.poolVersion || 1) < 3) {
+    for (const t of state.txns) t.pool = poolFor(t.desc);
+    state.settings.poolVersion = 3;
+    save();
+  }
+  $('#set-datefmt').value = state.settings.dateFmt;
+  $('#set-currency').value = (state.settings.currency || '').trim();
+  setHeaderH();
+  let startView = state.txns.length ? 'sort' : 'import';
+  try { startView = sessionStorage.getItem('ss-view') || startView; } catch {}
+  setView(startView);
+}
+boot();
 </script>
 </body>
 </html>
